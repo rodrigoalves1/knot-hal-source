@@ -273,6 +273,27 @@ void nrf24l01_set_data_settings(uint8_t channel, uint8_t *aa, int8_t pipe)
 	nrf24l01_set_prx();
 }
 
+/*This function wait the connect request response*/
+int nrf24l01_connect_wait(int8_t cli_sockfd)
+{
+	int err;
+	size_t len;
+	uint8_t datagram[NRF24_MTU];
+	struct nrf14_ll_crtl_pdu *ipdu = (void *)datagram;
+	struct nrf24_ll_version_ind *ipdu_pay = (void*)ipdu->payload;
+
+	len = read_data(cli_sockfd, datagram, NRF24_MTU);
+	if (len < 0)
+		return -1;
+
+	if (ipdu->opcode != NRF24_LL_CRTL_OP_VERSION_IND)
+		return -1;
+
+	if (ipdu_pay->major < 0 || ipdu_pay->minor < 0)
+		return -1; /* invalid versions*/
+
+	return 0;
+}
 
 int nrf24L01_connect_response(uint8_t sockfd)
 {
