@@ -42,6 +42,8 @@ int8_t pipes_allocate[] = {0, 0, 0, 0, 0, 0};
 uint64_t addr_thing = 22222;
 uint64_t addr_gw = 333333;
 uint8_t channel_data = 20;
+uint8_t major = 0;
+uint8_t minor = 0;
 
 static int nrf24l01_probe(void)
 {
@@ -269,6 +271,34 @@ void nrf24l01_set_data_settings(uint8_t channel, uint8_t *aa, int8_t pipe)
 	nrf24l01_set_channel(channel);
 	nrf24l01_open_pipe(pipe, aa);
 	nrf24l01_set_prx();
+}
+
+
+int nrf24L01_connect_response(uint8_t sockfd)
+{
+
+	uint8_t datagram[NRF24_MTU];
+	struct nrf14_ll_crtl_pdu *opdu = (void *)datagram;
+	int err;
+	size_t len;
+	size_t offset;
+	/* send version pkt */
+	opdu->opcode = NRF24_LL_CRTL_OP_VERSION_IND;
+
+	/* set payload with major and minor */
+	memcpy(opdu->payload, &major, sizeof(uint8_t));
+	offset = sizeof(uint8_t);
+	memcpy(opdu->payload+offset, &minor, sizeof(uint8_t));
+
+	len = sizeof(struct nrf24_ll_version_ind);
+	len += sizeof(struct nrf14_ll_crtl_pdu);
+
+	/* send data from client sockfd(pipe allocated to client)*/
+	err = send_data(sockfd, datagram, len);
+	if (err < 0)
+		return -1;
+
+	return 0;
 }
 
 static int nrf24l01_connect(int cli_sockfd, uint8_t to_addr)
