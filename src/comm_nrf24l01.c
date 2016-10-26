@@ -38,6 +38,11 @@ int8_t pipes_allocate[] = {0, 0, 0, 0, 0, 0};
 
 #define NRF24_PIPE0		0
 
+/* TODO: Get this values from config file */
+uint64_t addr_thing = 22222;
+uint64_t addr_gw = 333333;
+uint8_t channel_data = 20;
+
 static int nrf24l01_probe(void)
 {
 	return nrf24l01_init("/dev/spidev0.0");
@@ -259,9 +264,39 @@ static int nrf24l01_listen(int sockfd)
 
 static int nrf24l01_connect(int cli_sockfd, uint8_t to_addr)
 {
+	int err;
+	uint8_t datagram[NRF24_MTU];
+	struct nrf24_ll_mgmt_pdu *opdu = (void *)datagram;
+	size_t len;
+	size_t offset;
 
-	return -ENOSYS;
+	opdu->type = NRF24_PDU_TYPE_CONNECT_REQ;
+
+	memcpy(opdu->payload, &addr_gw, sizeof(uint64_t));
+	offset = sizeof(uint64_t);
+	memcpy(opdu->payload+offset,  &addr_thing, sizeof(uint64_t));
+	offset += sizeof(uint64_t);
+	memcpy(opdu->payload+offset, &channel_data, sizeof(uint8_t));
+	offset += sizeof(uint8_t);
+	/*
+	 * Set in payload the addr to be set in client.
+	 * cli_sockfd contains the pipe allocated for the client
+	 * aa_pipes contains the Access Address for each pipe
+	 */
+	memcpy(opdu->payload+offset, aa_pipes[cli_sockfd],
+			sizeof(aa_pipes[cli_sockfd]));
+
+	len = sizeof(struct nrf24_ll_mgmt_connect);
+	len += sizeof(struct nrf24_ll_mgmt_pdu);
+
+	/*Send connect_request in broadcast */
+	err = send_data(PIPE_BROADCAST, datagram, len);
+	if (err < 0)
+		return -1;
+
+	return cli_sockfd;
 }
+
 struct phy_driver nrf24l01 = {
 	.name = "nRF24L01",
 	.probe = nrf24l01_probe,

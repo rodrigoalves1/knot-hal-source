@@ -51,6 +51,7 @@ struct nrf24_ll_mgmt_connect {
 	uint64_t rfu;		/* Reserved for future use */
 } __attribute__ ((packed));
 
+
 /*
  * TODO: payload of mgmt frames may have class of device or appearance,
  * operating behaviour (intervals), supported services, service specific
