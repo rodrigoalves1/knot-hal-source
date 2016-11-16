@@ -31,10 +31,11 @@ struct serial_opts {
 
 static struct serial_opts serial_opts;
 
-/* Returns last character from the pathname, like 0 in /tty/ttyUSB0 */
 static int serial_open(const char *pathname)
 {
+	int ttyfd;
 	struct stat st;
+	struct termios term;
 
 	/* Setting default value */
 	if (!pathname)
@@ -45,18 +46,6 @@ static int serial_open(const char *pathname)
 
 	if (stat(serial_opts.tty, &st) < 0)
 		return -errno;
-
-	return serial_opts.tty[strlen(serial_opts.tty)-1] - '0';
-}
-
-static void serial_remove(void)
-{
-}
-
-static int serial_listen(int sock, uint8_t channel)
-{
-	struct termios term;
-	int ttyfd;
 
 	memset(&term, 0, sizeof(term));
 	/*
@@ -88,6 +77,10 @@ static int serial_listen(int sock, uint8_t channel)
 	return ttyfd;
 }
 
+static void serial_remove(void)
+{
+}
+
 static ssize_t serial_recv(int sockfd, void *buffer, size_t len)
 {
 	return read(sockfd, buffer, len);
@@ -110,7 +103,6 @@ struct phy_driver phy_serial = {
 	.open = serial_open,
 	.remove = serial_remove,
 	.close = serial_close,
-	.listen = serial_listen,
 	.recv = serial_recv,
 	.send = serial_send
 };
