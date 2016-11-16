@@ -103,6 +103,6 @@ struct phy_driver phy_serial = {
 	.open = serial_open,
 	.remove = serial_remove,
 	.close = serial_close,
-	.recv = serial_recv,
-	.send = serial_send
+	.read = serial_recv,
+	.write = serial_send
 };
