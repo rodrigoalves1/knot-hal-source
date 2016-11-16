@@ -77,10 +77,6 @@ static int serial_open(const char *pathname)
 	return ttyfd;
 }
 
-static void serial_remove(void)
-{
-}
-
 static ssize_t serial_recv(int sockfd, void *buffer, size_t len)
 {
 	return read(sockfd, buffer, len);
@@ -101,7 +97,6 @@ static void serial_close(int fd)
 struct phy_driver phy_serial = {
 	.name = "Serial",
 	.open = serial_open,
-	.remove = serial_remove,
 	.close = serial_close,
 	.read = serial_recv,
 	.write = serial_send
