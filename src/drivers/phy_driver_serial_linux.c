@@ -88,12 +88,6 @@ static int serial_listen(int sock, uint8_t channel)
 	return ttyfd;
 }
 
-static int serial_connect(int sock, uint8_t to_addr)
-{
-	/*TODO: Already implemented in ktool*/
-	return 0;
-}
-
 static ssize_t serial_recv(int sockfd, void *buffer, size_t len)
 {
 	return read(sockfd, buffer, len);
@@ -117,7 +111,6 @@ struct phy_driver phy_serial = {
 	.remove = serial_remove,
 	.close = serial_close,
 	.listen = serial_listen,
-	.connect = serial_connect,
 	.recv = serial_recv,
 	.send = serial_send
 };
