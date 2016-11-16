@@ -31,13 +31,6 @@ struct serial_opts {
 
 static struct serial_opts serial_opts;
 
-/* Check if tty path is available*/
-static int serial_probe(const char *spi, uint8_t tx_power)
-{
-	return 0;
-}
-
-
 /* Returns last character from the pathname, like 0 in /tty/ttyUSB0 */
 static int serial_open(const char *pathname)
 {
@@ -127,7 +120,6 @@ static void serial_close(int fd)
 struct phy_driver phy_serial = {
 	.name = "Serial",
 	.open = serial_open,
-	.probe = serial_probe,
 	.remove = serial_remove,
 	.close = serial_close,
 	.listen = serial_listen,
