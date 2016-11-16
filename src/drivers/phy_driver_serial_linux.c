@@ -88,12 +88,6 @@ static int serial_listen(int sock, uint8_t channel)
 	return ttyfd;
 }
 
-static int serial_accept(int srv_sockfd)
-{
-	/* Map virtual fd to pipe */
-	return 0;
-}
-
 static int serial_connect(int sock, uint8_t to_addr)
 {
 	/*TODO: Already implemented in ktool*/
@@ -123,7 +117,6 @@ struct phy_driver phy_serial = {
 	.remove = serial_remove,
 	.close = serial_close,
 	.listen = serial_listen,
-	.accept = serial_accept,
 	.connect = serial_connect,
 	.recv = serial_recv,
 	.send = serial_send
