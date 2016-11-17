@@ -50,16 +50,16 @@ static int hal_comm_init(const char *pathname)
 	return sock;
 }
 
-static int listen_unix(int sock, uint8_t channel)
+static int hal_comm_listen(int sockfd)
 {
 	int err;
 
-	if (listen(sock, 1) == -1) {
+	if (listen(sockfd, 1) == -1) {
 		err = -errno;
 		return err;
 	}
 
-	return sock;
+	return sockfd;
 }
 
 static int connect_unix(int sock, uint8_t to_addr)
