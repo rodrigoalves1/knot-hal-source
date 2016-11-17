@@ -87,9 +87,9 @@ static ssize_t hal_comm_read(int sockfd, void *buffer, size_t count)
 	return read(sockfd, buffer, count);
 }
 
-static ssize_t send_unix(int sock, const void *buffer, size_t len)
+static ssize_t hal_comm_write(int sockfd, const void *buffer, size_t count)
 {
-	return write(sock, buffer, len);
+	return write(sockfd, buffer, count);
 }
 
 static void close_unix(int sock)
