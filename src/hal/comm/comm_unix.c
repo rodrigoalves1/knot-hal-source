@@ -96,16 +96,3 @@ static void close_unix(int sock)
 {
 	close(sock);
 }
-
-struct phy_driver phy_unix = {
-	.name = "Unix",
-	.probe = probe_unix,
-	.remove = remove_unix,
-	.open = open_unix,
-	.listen = listen_unix,
-	.accept = accept_unix,
-	.connect = connect_unix,
-	.recv = recv_unix,
-	.send = send_unix,
-	.close = close_unix,
-};
