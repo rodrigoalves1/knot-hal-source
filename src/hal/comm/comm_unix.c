@@ -28,7 +28,7 @@ static void remove_unix(void)
 {
 }
 
-static int open_unix(const char *pathname)
+static int hal_comm_init(const char *pathname)
 {
 	struct sockaddr_un addr;
 	int err, sock;
