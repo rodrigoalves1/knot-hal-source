@@ -82,9 +82,9 @@ static int hal_comm_accept(int sockfd, uint64_t *to_addr)
 	return accept(sockfd, NULL, NULL);
 }
 
-static ssize_t recv_unix(int sock, void *buffer, size_t len)
+static ssize_t hal_comm_read(int sockfd, void *buffer, size_t count)
 {
-	return read(sock, buffer, len);
+	return read(sockfd, buffer, count);
 }
 
 static ssize_t send_unix(int sock, const void *buffer, size_t len)
