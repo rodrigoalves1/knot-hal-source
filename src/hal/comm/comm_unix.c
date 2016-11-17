@@ -77,9 +77,9 @@ static int hal_comm_connect(int sockfd, uint64_t *to_addr)
 	return sockfd;
 }
 
-static int accept_unix(int srv_sock)
+static int hal_comm_accept(int sockfd, uint64_t *to_addr)
 {
-	return accept(srv_sock, NULL, NULL);
+	return accept(sockfd, NULL, NULL);
 }
 
 static ssize_t recv_unix(int sock, void *buffer, size_t len)
