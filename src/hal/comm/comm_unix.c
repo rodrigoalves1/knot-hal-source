@@ -41,6 +41,12 @@ static int hal_comm_init(const char *pathname)
 	return sock;
 }
 
+int hal_comm_deinit(void)
+{
+	/* TODO */
+	return -ENOSYS;
+}
+
 static int hal_comm_listen(int sockfd)
 {
 	int err;
