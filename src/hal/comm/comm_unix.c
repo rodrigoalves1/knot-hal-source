@@ -62,7 +62,7 @@ static int hal_comm_listen(int sockfd)
 	return sockfd;
 }
 
-static int connect_unix(int sock, uint8_t to_addr)
+static int hal_comm_connect(int sockfd, uint64_t *to_addr)
 {
 	struct sockaddr_un addr;
 
@@ -71,10 +71,10 @@ static int connect_unix(int sock, uint8_t to_addr)
 	strncpy(addr.sun_path + 1, THING_TO_NRFD_UNIX_SOCKET,
 					strlen(THING_TO_NRFD_UNIX_SOCKET));
 
-	if (connect(sock, (struct sockaddr *) &addr, sizeof(addr)) == -1)
+	if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1)
 		return -errno;
 
-	return sock;
+	return sockfd;
 }
 
 static int accept_unix(int srv_sock)
