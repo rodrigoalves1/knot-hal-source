@@ -92,7 +92,7 @@ static ssize_t hal_comm_write(int sockfd, const void *buffer, size_t count)
 	return write(sockfd, buffer, count);
 }
 
-static void close_unix(int sock)
+static void hal_comm_close(int sockfd)
 {
-	close(sock);
+	close(sockfd);
 }
