@@ -19,15 +19,6 @@
 
 #define THING_TO_NRFD_UNIX_SOCKET	":thing:nrfd"
 
-static int probe_unix(const char *spi, uint8_t tx_pwr)
-{
-	return 0;
-}
-
-static void remove_unix(void)
-{
-}
-
 static int hal_comm_init(const char *pathname)
 {
 	struct sockaddr_un addr;
