@@ -24,7 +24,8 @@
 #include "phy_driver.h"
 
 struct phy_driver *driver_ops[] = {
-	&nrf24l01
+	&nrf24l01,
+	&serial_linux
 };
 
 /* ARRAY SIZE */

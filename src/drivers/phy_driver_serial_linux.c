@@ -94,7 +94,7 @@ static void serial_close(int fd)
 	close(fd);
 }
 
-struct phy_driver phy_serial = {
+struct phy_driver serial_linux = {
 	.name = "Serial",
 	.open = serial_open,
 	.close = serial_close,

@@ -39,3 +39,4 @@ struct phy_driver {
 };
 
 extern struct phy_driver nrf24l01;
+extern struct phy_driver serial_linux;
