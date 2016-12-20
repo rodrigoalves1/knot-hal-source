@@ -183,8 +183,19 @@ int main(int argc, char *argv[])
 
 	err = manager_start(opt_cfg, opt_host, opt_port, opt_spi, opt_channel,
 								opt_dbm);
+
 	if (err < 0) {
 		g_main_loop_unref(main_loop);
+		return EXIT_FAILURE;
+	}
+
+	/* Set user id to nobody */
+	err = setuid(65534);
+
+	if (err != 0) {
+		printf("Set uid to nobody failed.  %s(%d). Exiting ...\n",
+							strerror(errno), errno);
+		manager_stop();
 		return EXIT_FAILURE;
 	}
 
