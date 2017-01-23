@@ -74,6 +74,10 @@ static const gchar introspection_xml[] =
 	"      <arg type='s' name='key' direction='in'/>"
 	"      <arg type='b' name='response' direction='out'/>"
 	"    </method>"
+	"    <method name='RemoveDevice'>"
+	"      <arg type='s' name='mac' direction='in'/>"
+	"      <arg type='b' name='response' direction='out'/>"
+	"    </method>"
 	"    <property type='s' name='Mac' access='read'/>"
 	"    <property type='s' name='Powered' access='readwrite'/>"
 	"  </interface>"
@@ -120,6 +124,28 @@ done:
 	return response;
 }
 
+static gboolean remove_known_device(const gchar *mac)
+{
+	uint8_t i;
+	gboolean response = FALSE;
+	struct nrf24_mac dev;
+
+	nrf24_str2mac(mac, &dev);
+	/* TODO: update keys file to remove mac */
+	for (i = 0; i < MAX_PEERS; i++) {
+		if (nrf_adapt.known_peers[i].address.uint64 ==
+							dev.address.uint64) {
+			/* Remove mac from struct */
+			nrf_adapt.known_peers[i].address.uint64 = 0;
+			nrf_adapt.known_peers_size--;
+			response = TRUE;
+			break;
+		}
+	}
+
+	return response;
+}
+
 static void handle_method_call(GDBusConnection *connection,
 				const gchar *sender,
 				const gchar *object_path,
@@ -129,14 +155,20 @@ static void handle_method_call(GDBusConnection *connection,
 				GDBusMethodInvocation *invocation,
 				gpointer user_data)
 {
-	if (g_strcmp0(method_name, "UpdateDevice") == 0) {
-		const gchar *mac;
-		const gchar *key;
-		gboolean response;
+	const gchar *mac;
+	const gchar *key;
+	gboolean response;
 
+	if (g_strcmp0(method_name, "UpdateDevice") == 0) {
 		g_variant_get(parameters, "(&s&s)", &mac, &key);
 		/* Add or Update mac address */
 		response = add_known_device(mac, key);
+		g_dbus_method_invocation_return_value(invocation,
+				g_variant_new("(b)", response));
+	} else if (g_strcmp0(method_name, "RemoveDevice") == 0) {
+		g_variant_get(parameters, "(&s)", &mac);
+		/* Remove device */
+		response = remove_known_device(mac);
 		g_dbus_method_invocation_return_value(invocation,
 				g_variant_new("(b)", response));
 	}
