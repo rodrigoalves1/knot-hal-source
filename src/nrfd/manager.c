@@ -37,11 +37,15 @@ static guint mgmtwatch;
 static guint dbus_id;
 
 static struct adapter {
-	struct nrf24_mac *mac;
+	struct nrf24_mac mac;
 	gboolean power;
-	/* Struct with the mac address of the known peers */
-	struct nrf24_mac known_peers[MAX_PEERS];
-	guint registration_id[MAX_PEERS];
+	/* Struct with the known peers */
+	struct {
+		struct nrf24_mac addr;
+		guint registration_id;
+		gchar *alias;
+		gboolean status;
+	} known_peers[MAX_PEERS];
 	guint known_peers_size;
 } nrf_adapt;
 
@@ -93,18 +97,17 @@ static GVariant *handle_device_get_property(GDBusConnection *connection,
 {
 	GVariant *ret = NULL;
 	char str_mac[24];
-	guint device = 0;
+	guint dev = 0;
 
+	sscanf(object_path, "/org/cesar/knot/mac%d", &dev);
 	/* TODO implement Alias and Status */
 	if (g_strcmp0(property_name, "Mac") == 0) {
-		sscanf(object_path, "/org/cesar/knot/mac%d", &device);
-		nrf24_mac2str(nrf_adapt.known_peers + device, str_mac);
+		nrf24_mac2str(&nrf_adapt.known_peers[dev].addr, str_mac);
 		ret = g_variant_new("s", str_mac);
 	} else if (g_strcmp0(property_name, "Alias") == 0) {
-		ret = g_variant_new("s", "ALIAS");
+		ret = g_variant_new("s", nrf_adapt.known_peers[dev].alias);
 	} else if (g_strcmp0(property_name, "Status") == 0) {
-		/* check if peer is connected */
-		ret = g_variant_new_boolean(TRUE);
+		ret = g_variant_new_boolean(nrf_adapt.known_peers[dev].status);
 	} else {
 		ret = g_variant_new_string("Unknown property requested");
 	}
@@ -173,7 +176,7 @@ static int8_t new_device_object(GDBusConnection *connection, uint8_t free_pos)
 		g_free(interface);
 		return -1;
 	}
-	nrf_adapt.registration_id[free_pos] = registration_id;
+	nrf_adapt.known_peers[free_pos].registration_id = registration_id;
 	return 0;
 }
 
@@ -182,6 +185,7 @@ static gboolean add_known_device(GDBusConnection *connection, const gchar *mac,
 {
 	uint8_t alloc_pos, i;
 	int8_t free_pos;
+	gchar alias[7];
 	gboolean response = FALSE;
 	struct nrf24_mac new_dev;
 
@@ -190,12 +194,12 @@ static gboolean add_known_device(GDBusConnection *connection, const gchar *mac,
 	/* TODO: update keys file whith any change to struct*/
 	for (i = 0, alloc_pos = 0, free_pos = -1; alloc_pos <
 					nrf_adapt.known_peers_size; i++) {
-		if (nrf_adapt.known_peers[i].address.uint64 ==
+		if (nrf_adapt.known_peers[i].addr.address.uint64 ==
 						new_dev.address.uint64) {
 			/* TODO: Update key of existing mac */
 			response = TRUE;
 			goto done;
-		} else if (nrf_adapt.known_peers[i].address.uint64 != 0) {
+		} else if (nrf_adapt.known_peers[i].addr.address.uint64 != 0) {
 			alloc_pos++;
 		} else if (free_pos < 0) {
 			/* store available position in array */
@@ -211,8 +215,11 @@ static gboolean add_known_device(GDBusConnection *connection, const gchar *mac,
 		if (new_device_object(connection, free_pos) < 0)
 			goto done;
 
-		nrf_adapt.known_peers[free_pos].address.uint64 =
+		nrf_adapt.known_peers[free_pos].addr.address.uint64 =
 							new_dev.address.uint64;
+		snprintf(alias, 7, "Thing%d", free_pos);
+		nrf_adapt.known_peers[free_pos].alias = g_strdup(alias);
+		nrf_adapt.known_peers[free_pos].status = FALSE;
 		/* TODO: Set key for this mac */
 		nrf_adapt.known_peers_size++;
 		response = TRUE;
@@ -234,13 +241,14 @@ static gboolean remove_known_device(GDBusConnection *connection,
 		return FALSE;
 	/* TODO: update keys file to remove mac */
 	for (i = 0; i < MAX_PEERS; i++) {
-		if (nrf_adapt.known_peers[i].address.uint64 ==
+		if (nrf_adapt.known_peers[i].addr.address.uint64 ==
 							dev.address.uint64) {
 			if (!g_dbus_connection_unregister_object(connection,
-				nrf_adapt.registration_id[i]))
+				nrf_adapt.known_peers[i].registration_id))
 				break;
 			/* Remove mac from struct */
-			nrf_adapt.known_peers[i].address.uint64 = 0;
+			nrf_adapt.known_peers[i].addr.address.uint64 = 0;
+			g_free(nrf_adapt.known_peers[i].alias);
 			nrf_adapt.known_peers_size--;
 			response = TRUE;
 			break;
@@ -290,7 +298,7 @@ static GVariant *handle_get_property(GDBusConnection  *connection,
 	char str_mac[24];
 
 	if (g_strcmp0(property_name, "Mac") == 0) {
-		nrf24_mac2str(nrf_adapt.mac, str_mac);
+		nrf24_mac2str(&nrf_adapt.mac, str_mac);
 		ret = g_variant_new("s", str_mac);
 	} else if (g_strcmp0(property_name, "Powered") == 0) {
 		ret = g_variant_new_boolean(nrf_adapt.power);
@@ -397,7 +405,7 @@ static void on_bus_acquired(GDBusConnection *connection, const gchar *name,
 			k--;
 			continue;
 		}
-		nrf_adapt.registration_id[k] = registration_id;
+		nrf_adapt.known_peers[k].registration_id = registration_id;
 	}
 }
 
@@ -423,7 +431,7 @@ static void on_name_lost(GDBusConnection *connection, const gchar *name,
 	exit(EXIT_FAILURE);
 }
 
-static guint dbus_init(struct nrf24_mac *mac)
+static guint dbus_init(struct nrf24_mac mac)
 {
 	guint owner_id;
 
@@ -444,6 +452,12 @@ static guint dbus_init(struct nrf24_mac *mac)
 
 static void dbus_on_close(guint owner_id)
 {
+	uint8_t i;
+
+	for (i = 0; i < MAX_PEERS; i++) {
+		if (nrf_adapt.known_peers[i].addr.address.uint64 != 0)
+			g_free(nrf_adapt.known_peers[i].alias);
+	}
 	g_bus_unown_name(owner_id);
 	g_dbus_node_info_unref(introspection_data);
 }
@@ -455,7 +469,7 @@ static int8_t check_permission(struct nrf24_mac mac)
 
 	for (i = 0; i < MAX_PEERS; i++) {
 		if (mac.address.uint64 ==
-				nrf_adapt.known_peers[i].address.uint64)
+				nrf_adapt.known_peers[i].addr.address.uint64)
 			return 0;
 	}
 
@@ -548,6 +562,7 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 {
 	GIOCondition cond = G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL;
 	int8_t position;
+	uint8_t i;
 	int err;
 	struct mgmt_evt_nrf24_bcast_presence *evt_pre =
 			(struct mgmt_evt_nrf24_bcast_presence *) mhdr->payload;
@@ -604,6 +619,14 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 		g_io_channel_unref(peers[position].knotd_io);
 
 		count_clients++;
+
+		for (i = 0; i < MAX_PEERS; i++) {
+			if (evt_pre->mac.address.uint64 ==
+				nrf_adapt.known_peers[i].addr.address.uint64) {
+				nrf_adapt.known_peers[i].status = TRUE;
+				break;
+			}
+		}
 	}
 
 	/*Send Connect */
@@ -999,9 +1022,17 @@ static int parse_nodes(const char *nodes_file)
 
 		/* Parse mac address string into struct nrf24_mac known_peers */
 		if (nrf24_str2mac(json_object_get_string(obj_tmp),
-					nrf_adapt.known_peers + i) < 0)
+					&nrf_adapt.known_peers[i].addr) < 0)
 			goto failure;
 		nrf_adapt.known_peers_size++;
+
+		if (!json_object_object_get_ex(obj_nodes, "name", &obj_tmp))
+			goto failure;
+
+		/* Set the name of the peer registered */
+		nrf_adapt.known_peers[i].alias =
+				g_strdup(json_object_get_string(obj_tmp));
+		nrf_adapt.known_peers[i].status = FALSE;
 	}
 
 	err = 0;
@@ -1038,13 +1069,15 @@ int manager_start(const char *file, const char *host, int port,
 		err = gen_save_mac(json_str, file, &mac);
 
 	free(json_str);
+	nrf_adapt.mac = mac;
+	nrf_adapt.power = TRUE;
 
 	if (err < 0) {
 		log_error("Invalid configuration file: %s", file);
 		return err;
 	}
 	/* Start server dbus */
-	dbus_id = dbus_init(&mac);
+	dbus_id = dbus_init(mac);
 
 	 /* Validate and set the channel */
 	if (channel < 0 || channel > 125)
