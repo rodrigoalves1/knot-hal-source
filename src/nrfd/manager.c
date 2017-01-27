@@ -310,7 +310,10 @@ static gboolean handle_set_property(GDBusConnection  *connection,
 				GError **error,
 				gpointer user_data)
 {
-	/*TODO: set boolean power property and turn radio on or off*/
+	if (g_strcmp0(property_name, "Powered") == 0) {
+		nrf_adapt.power = g_variant_get_boolean(value);
+		/* TODO turn adapter on or off */
+	}
 	return TRUE;
 }
 
@@ -323,7 +326,18 @@ static const GDBusInterfaceVTable interface_vtable = {
 static void on_bus_acquired(GDBusConnection *connection, const gchar *name,
 							gpointer user_data)
 {
+	uint8_t i, j, k;
 	guint registration_id;
+	GDBusInterfaceInfo *interface;
+	GDBusPropertyInfo **properties;
+	gchar object_path[21];
+	gchar *obj_name[] = {"Mac", "Alias", "Status"};
+	gchar *signature[] = {"s", "s", "b"};
+	GDBusInterfaceVTable interface_device_vtable = {
+		NULL,
+		handle_device_get_property,
+		NULL
+	};
 
 	registration_id = g_dbus_connection_register_object(connection,
 					"/org/cesar/knot/nrf0",
@@ -333,7 +347,58 @@ static void on_bus_acquired(GDBusConnection *connection, const gchar *name,
 					NULL,  /* user_data_free_func */
 					NULL); /* GError** */
 	g_assert(registration_id > 0);
-	/* TODO Register on dbus every object already in keys.json */
+
+	/* Register on dbus every device already known */
+	for (j = 0, k = 0; j < nrf_adapt.known_peers_size; j++, k++) {
+		properties = g_new0(GDBusPropertyInfo *, 4);
+		for (i = 0; i < 3; i++) {
+			properties[i] = g_new0(GDBusPropertyInfo, 1);
+			/*
+			 * properties->ref_count is incremented here because
+			 * when registering an object the function only
+			 * increments interface->ref_count. Not doing this leads
+			 * to the memory of properties not being deallocated
+			 * when we call g_dbus_connection_unregister_object.
+			 */
+			g_atomic_int_inc(&properties[i]->ref_count);
+			properties[i]->name = g_strdup(obj_name[i]);
+			properties[i]->signature = g_strdup(signature[i]);
+			properties[i]->flags =
+					G_DBUS_PROPERTY_INFO_FLAGS_READABLE;
+			properties[i]->annotations = NULL;
+		}
+
+		interface = g_new0(GDBusInterfaceInfo, 1);
+		interface->name = g_strdup("org.cesar.knot.mac.manager");
+		interface->methods = NULL;
+		interface->signals = NULL;
+		interface->properties = properties;
+		interface->annotations = NULL;
+
+		snprintf(object_path, 21, "/org/cesar/knot/mac%d", k);
+
+		registration_id = g_dbus_connection_register_object(
+						connection,
+						object_path,
+						interface,
+						&interface_device_vtable,
+						NULL,  /* user data */
+						NULL,  /* user data free func */
+						NULL); /* GError** */
+		if (registration_id <= 0) {
+			for (i = 0; properties[i] != NULL; i++) {
+				g_free(properties[i]->name);
+				g_free(properties[i]->signature);
+				g_free(properties[i]);
+			}
+			g_free(properties);
+			g_free(interface->name);
+			g_free(interface);
+			k--;
+			continue;
+		}
+		nrf_adapt.registration_id[k] = registration_id;
+	}
 }
 
 static void on_name_acquired(GDBusConnection *connection, const gchar *name,
