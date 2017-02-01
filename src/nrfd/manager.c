@@ -70,6 +70,12 @@ static struct peer peers[MAX_PEERS] = {
 	{.socket_fd = -1}
 };
 
+struct bcast_presence {
+	char name[10];
+	unsigned long time_last_bcast;
+};
+
+static GHashTable *peer_bcast_table;
 static uint8_t count_clients;
 
 static GDBusNodeInfo *introspection_data = NULL;
@@ -635,6 +641,7 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 	uint8_t i;
 	int err;
 	char mac_str[MAC_ADDRESS_SIZE];
+	struct bcast_presence *peer;
 	struct mgmt_evt_nrf24_bcast_presence *evt_pre =
 			(struct mgmt_evt_nrf24_bcast_presence *) mhdr->payload;
 
@@ -643,9 +650,26 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 	 * things trying to connect to the gw.
 	 */
 	nrf24_mac2str(&evt_pre->mac, mac_str);
-	log_info("Thing sending presence. MAC = %s Name =%s",
-			mac_str, evt_pre->name);
 
+	peer = g_hash_table_lookup(peer_bcast_table, mac_str);
+	if (peer != NULL) {
+		peer->time_last_bcast = hal_time_ms();
+		goto done;
+	}
+	peer = g_try_new0(struct bcast_presence, 1);
+	if (peer == NULL)
+		return -ENOMEM;
+
+	log_info("Thing sending presence. MAC = %s Name = %s",
+							mac_str, evt_pre->name);
+	peer->time_last_bcast = hal_time_ms();
+	memcpy(peer->name, evt_pre->name, sizeof(peer->name));
+	/*
+	 * MAC and device name will be printed only once, but the last presence
+	 * time is updated.
+	 */
+	g_hash_table_insert(peer_bcast_table, mac_str, peer);
+done:
 	/* Check if peer is allowed to connect */
 	if (check_permission(evt_pre->mac) < 0)
 		return -EPERM;
@@ -709,6 +733,8 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 				break;
 			}
 		}
+		/* Remove device when the connection is established */
+		g_hash_table_remove(peer_bcast_table, mac_str);
 	}
 
 	/*Send Connect */
@@ -1173,6 +1199,9 @@ int manager_start(const char *file, const char *host, int port,
 	if (dbm == -255)
 		dbm = cfg_dbm;
 
+	peer_bcast_table = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+								NULL, g_free);
+
 	if (host == NULL)
 		return radio_init(spi, channel, dbm_int2rfpwr(dbm),
 						(const struct nrf24_mac*) &mac);
@@ -1187,4 +1216,5 @@ void manager_stop(void)
 {
 	dbus_on_close(dbus_id);
 	radio_stop();
+	g_hash_table_destroy(peer_bcast_table);
 }
