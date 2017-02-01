@@ -22,6 +22,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <time.h>
 
 #include "include/nrf24.h"
 #include "include/comm.h"
@@ -73,7 +74,7 @@ static struct peer peers[MAX_PEERS] = {
 
 struct bcast_presence {
 	char *name;
-	uint8_t last_presence;
+	unsigned long time_last_bcast;
 };
 
 static uint8_t count_clients;
@@ -641,7 +642,7 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 	uint8_t i;
 	int err;
 	char mac_str[MAC_ADDRESS_SIZE];
-	struct bcast_presence slave;
+	struct bcast_presence *slave;
 	struct mgmt_evt_nrf24_bcast_presence *evt_pre =
 			(struct mgmt_evt_nrf24_bcast_presence *) mhdr->payload;
 
@@ -651,14 +652,18 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 	 * connection establishment, it gets removed from the list.
 	 */
 	nrf24_mac2str(&evt_pre->mac, mac_str);
-	if (!g_hash_table_lookup(presence, mac_str))
+
+	slave = g_hash_table_lookup(presence, mac_str);
+	if (slave == NULL) {
 		log_info("Thing sending presence. MAC = %s", mac_str);
+		slave = g_new0(struct bcast_presence, 1);
+	}
 	/* MAC and device name will be printed only once, but the last presence
 	 * time is updated.
 	 */
-	slave.last_presence = hal_time_ms();
-	g_hash_table_insert(presence, mac_str, &slave);
-
+	slave->time_last_bcast = hal_time_ms();
+	log_info("gettime %lu", slave->time_last_bcast);
+	g_hash_table_insert(presence, mac_str, slave);
 	/* Check if peer is allowed to connect */
 	if (check_permission(evt_pre->mac) < 0)
 		return -EPERM;
@@ -1184,11 +1189,12 @@ int manager_start(const char *file, const char *host, int port,
 	if (dbm == -255)
 		dbm = cfg_dbm;
 
+	log_info("hash table created");
+	presence = g_hash_table_new(g_direct_hash, g_direct_equal);
+
 	if (host == NULL)
 		return radio_init(spi, channel, dbm_int2rfpwr(dbm),
 						(const struct nrf24_mac*) &mac);
-
-	presence = g_hash_table_new(g_direct_hash, g_direct_equal);
 	/*
 	 * TCP development mode: Linux connected to RPi(phynrfd radio
 	 * proxy). Connect to phynrfd routing all traffic over TCP.
