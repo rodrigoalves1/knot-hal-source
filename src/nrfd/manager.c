@@ -94,6 +94,9 @@ static const gchar introspection_xml[] =
 	"      <arg type='s' name='mac' direction='in'/>"
 	"      <arg type='b' name='response' direction='out'/>"
 	"    </method>"
+	"    <method name='GetBroadcastingDevices'>"
+	"      <arg type='s' name='response' direction='out'/>"
+	"    </method>"
 	"    <property type='s' name='Mac' access='read'/>"
 	"    <property type='s' name='Powered' access='readwrite'/>"
 	"  </interface>"
@@ -332,6 +335,58 @@ static gboolean remove_known_device(GDBusConnection *connection,
 
 	return response;
 }
+static void dummy_hash_insert()
+{
+	struct bcast_presence *slave;
+
+	slave = g_new0(struct bcast_presence, 1);
+	slave->time_last_bcast = hal_time_ms();
+
+	g_hash_table_insert(presence, "00:00:00:00:11:22:33:44", slave);
+}
+/*
+static gboolean check_timeout(gpointer key, gpointer value, gpointer user_data)
+{
+	struct bcast_presence *slave = value;
+
+	 If it returns true the key/value is removed
+	if (hal_timeout(hal_time_ms(), slave->time_last_bcast, 5) > 0)
+		return TRUE;
+
+	return FALSE;
+}*/
+
+static int format_list(const char *devices_bcast)
+{
+	struct json_object *jobj, *jarray;
+	GHashTableIter iter;
+	gpointer key, value;
+
+	jarray = json_object_new_array();
+
+
+	g_hash_table_iter_init (&iter, presence);
+	while (g_hash_table_iter_next (&iter, &key, &value)) {
+		struct bcast_presence *slave = value;
+		jobj = json_object_new_object();
+
+		json_object_object_add(jobj, "name",
+					json_object_new_string(slave->name));
+		json_object_object_add(jobj, "mac",
+					json_object_new_string(key));
+		json_object_object_add(jobj, "time_last_bcast",
+				json_object_new_int(slave->time_last_bcast));
+
+		json_object_array_add(jarray, jobj);
+	}
+//		json_object_put(jobj);
+
+	devices_bcast = json_object_to_json_string(jarray);
+
+	log_info("%s", devices_bcast);
+
+	return 0;
+}
 
 static void handle_method_call(GDBusConnection *connection,
 				const gchar *sender,
@@ -345,6 +400,7 @@ static void handle_method_call(GDBusConnection *connection,
 	const gchar *mac;
 	const gchar *key;
 	gboolean response;
+	const char *devices_bcast;
 
 	if (g_strcmp0(method_name, "UpdateDevice") == 0) {
 		g_variant_get(parameters, "(&s&s)", &mac, &key);
@@ -358,6 +414,15 @@ static void handle_method_call(GDBusConnection *connection,
 		response = remove_known_device(connection, mac);
 		g_dbus_method_invocation_return_value(invocation,
 				g_variant_new("(b)", response));
+	} else if (g_strcmp0(method_name, "GetBroadcastingDevices") == 0) {
+		g_variant_get(parameters, "(&s)", &mac);
+		/* Get list of devices that sent presence recently */
+		//g_hash_table_foreach_remove(presence, check_timeout, NULL);
+		memset(&devices_bcast, 0, sizeof(devices_bcast));
+		dummy_hash_insert();
+		format_list(devices_bcast);
+		g_dbus_method_invocation_return_value(invocation,
+				g_variant_new("(&s)", devices_bcast));
 	}
 }
 
@@ -515,7 +580,7 @@ static guint dbus_init(struct nrf24_mac mac)
 									NULL);
 	g_assert(introspection_data != NULL);
 
-	owner_id = g_bus_own_name(G_BUS_TYPE_SYSTEM,
+	owner_id = g_bus_own_name(G_BUS_TYPE_SESSION,
 					"org.cesar.knot.nrf",
 					G_BUS_NAME_OWNER_FLAGS_NONE,
 					on_bus_acquired, on_name_acquired,
@@ -658,8 +723,10 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 		log_info("Thing sending presence. MAC = %s", mac_str);
 		slave = g_new0(struct bcast_presence, 1);
 	}
-	/* MAC and device name will be printed only once, but the last presence
-	 * time is updated.
+	/*
+	 * MAC and device name will be printed only once, but the last presence
+	 * time is updated. Every time a user refresh the list in the webui
+	 * we will discard devices that broadcasted
 	 */
 	slave->time_last_bcast = hal_time_ms();
 	log_info("gettime %lu", slave->time_last_bcast);
@@ -1191,7 +1258,7 @@ int manager_start(const char *file, const char *host, int port,
 
 	log_info("hash table created");
 	presence = g_hash_table_new(g_direct_hash, g_direct_equal);
-
+	return 0;
 	if (host == NULL)
 		return radio_init(spi, channel, dbm_int2rfpwr(dbm),
 						(const struct nrf24_mac*) &mac);
