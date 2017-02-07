@@ -392,6 +392,7 @@ static void handle_method_call(GDBusConnection *connection,
 				g_variant_new("(b)", response));
 	} else if (g_strcmp0("GetBroadcastingDevices", method_name) == 0) {
 		/* Get list of devices that sent presence recently */
+		log_info("chegou no lugar certo");
 		peers_bcast = json_object_new_array();
 		peers_to_json(peers_bcast);
 		g_dbus_method_invocation_return_value(invocation,
@@ -1192,14 +1193,46 @@ failure:
 	return err;
 }
 
+static void dummy_hash_insert(void)
+{
+	struct bcast_presence *peer, *peer2, *peer3, *test;
+
+	peer = g_new0(struct bcast_presence, 1);
+	peer2 = g_new0(struct bcast_presence, 1);
+	peer3 = g_new0(struct bcast_presence, 1);
+
+	peer->time_last_bcast = hal_time_ms();
+	peer->name = "cool name1";
+
+	peer2->time_last_bcast = hal_time_ms();
+	peer2->name = "cool name2";
+
+	peer3->time_last_bcast = hal_time_ms();
+	peer3->name = "cool name3";
+
+
+	g_hash_table_replace(peer_bcast_table, "00:00:00:00:01:02:03:04", peer);
+	g_hash_table_replace(peer_bcast_table, "00:00:00:00:05:06:07:08", peer2);
+	g_hash_table_replace(peer_bcast_table, "00:00:00:00:66:76:AC:DC", peer3);
+
+	test = g_hash_table_lookup(peer_bcast_table, "00:00:00:00:01:02:03:04");
+	if (test != NULL){
+		test->time_last_bcast = hal_time_ms();
+		test->name = "name updated";
+		log_info("atualizou test");
+	}
+}
+
 static gboolean check_timeout(gpointer key, gpointer value, gpointer user_data)
 {
 	struct bcast_presence *peer = value;
 
 	/* If it returns true the key/value is removed */
 	if (hal_timeout(hal_time_ms(), peer->time_last_bcast,
-							BCAST_TIMEOUT) > 0)
+							BCAST_TIMEOUT) > 0) {
+		log_info("Peer: %s timedout", (char *) key);
 		return TRUE;
+	}
 
 	return FALSE;
 }
@@ -1262,8 +1295,10 @@ int manager_start(const char *file, const char *host, int port,
 
 	peer_bcast_table = g_hash_table_new_full(g_direct_hash, g_direct_equal,
 								NULL, g_free);
-	g_timeout_add_seconds(5, timeout_iterator, NULL);
+	g_timeout_add_seconds(1, timeout_iterator, NULL);
+	dummy_hash_insert();
 
+	return 0;
 	if (host == NULL)
 		return radio_init(spi, channel, dbm_int2rfpwr(dbm),
 						(const struct nrf24_mac*) &mac);
