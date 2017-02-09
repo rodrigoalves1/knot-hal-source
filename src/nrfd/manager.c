@@ -33,6 +33,7 @@
 
 #define KNOTD_UNIX_ADDRESS		"knot"
 #define MAC_ADDRESS_SIZE		24
+#define BCAST_TIMEOUT			5000
 
 static int mgmtfd;
 static guint mgmtwatch;
@@ -390,6 +391,7 @@ static void handle_method_call(GDBusConnection *connection,
 		g_dbus_method_invocation_return_value(invocation,
 				g_variant_new("(b)", response));
 	} else if (g_strcmp0("GetBroadcastingDevices", method_name) == 0) {
+		/* Get list of devices that sent presence recently */
 		peers_bcast = json_object_new_array();
 		peers_to_json(peers_bcast);
 		g_dbus_method_invocation_return_value(invocation,
@@ -1190,6 +1192,25 @@ failure:
 	return err;
 }
 
+static gboolean check_timeout(gpointer key, gpointer value, gpointer user_data)
+{
+	struct bcast_presence *peer = value;
+
+	/* If it returns true the key/value is removed */
+	if (hal_timeout(hal_time_ms(), peer->time_last_bcast,
+							BCAST_TIMEOUT) > 0)
+		return TRUE;
+
+	return FALSE;
+}
+
+static gboolean timeout_iterator(gpointer user_data)
+{
+	g_hash_table_foreach_remove(peer_bcast_table, check_timeout, NULL);
+
+	return TRUE;
+}
+
 int manager_start(const char *file, const char *host, int port,
 					const char *spi, int channel, int dbm,
 					const char *nodes_file)
@@ -1241,6 +1262,7 @@ int manager_start(const char *file, const char *host, int port,
 
 	peer_bcast_table = g_hash_table_new_full(g_direct_hash, g_direct_equal,
 								NULL, g_free);
+	g_timeout_add_seconds(5, timeout_iterator, NULL);
 
 	if (host == NULL)
 		return radio_init(spi, channel, dbm_int2rfpwr(dbm),
