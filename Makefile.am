@@ -28,7 +28,7 @@ src_nrfd_nrfd_LDADD = libs/libhallog.a libs/libhalcommnrf24.a \
 				libs/libspi.a \
 				@GLIB_LIBS@ @JSON_LIBS@ @OPENSSL_LIBS@ \
 				@GIO_UNIX_LIBS@
-src_nrfd_nrfd_LDFLAGS = $(AM_LDFLAGS) 
+src_nrfd_nrfd_LDFLAGS = $(AM_LDFLAGS)
 src_nrfd_nrfd_CFLAGS = $(AM_CFLAGS) @GLIB_CFLAGS@ @OPENSSL_CFLAGS@ \
 				@GIO_UNIX_CFLAGS@ \
 				-I$(top_srcdir)/src \
