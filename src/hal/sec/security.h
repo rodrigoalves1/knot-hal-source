@@ -13,30 +13,19 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define secp128r1 16
-#define secp192r1 24
-#define secp256r1 32
-#define secp384r1 48
-#define ECC_CURVE secp256r1
-
-#if (ECC_CURVE != secp192r1 && ECC_CURVE != secp256r1 \
-    && ECC_CURVE != secp384r1)
-    #error "Must define ECC_CURVE to one of the available curves"
-#endif
-
-#define NUM_ECC_DIGITS ECC_CURVE
-
 #ifdef __cplusplus
 extern "C"{
 #endif
-int encrypt(unsigned char *plaintext, int plaintext_len, 
+
+int encrypt(unsigned char *plaintext, int plaintext_len,
 	unsigned char *key, unsigned char *iv, unsigned char *ciphertext);
-int decrypt(unsigned char *ciphertext, int ciphertext_len, 
+int decrypt(unsigned char *ciphertext, int ciphertext_len,
 	unsigned char *key, unsigned char *iv, unsigned char *plaintext);
 void deriveSecret (uint8_t stpubx[],uint8_t stpuby[], uint8_t lcpriv[],
 	uint8_t lcpubx[],  uint8_t lcpuby[], uint8_t secret[]);
 int generateKeys(uint8_t *keys);
 void gen_keys_ino(uint8_t *private, uint8_t *public);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
