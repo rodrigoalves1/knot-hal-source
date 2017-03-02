@@ -5,13 +5,14 @@ ZIP=zip
 
 AM_MAKEFLAGS = --no-print-directory
 SUBDIRS = src/spi src/nrf24l01 src/hal/storage src/hal/time src/hal/log \
-					src/hal/comm src/drivers src/hal/gpio
+					src/hal/comm src/drivers src/hal/gpio \
+					src/hal/sec
 
 AM_CFLAGS = $(WARNING_CFLAGS) $(BUILD_CFLAGS)
 AM_LDFLAGS = $(BUILD_LDFLAGS)
 
 bin_PROGRAMS = proxy/spiproxyd src/nrfd/nrfd src/lorad/lorad tools/sniffer tools/rpiecho \
-						src/seriald/seriald
+						src/seriald/seriald tools/testCrypto
 
 proxy_spiproxyd_SOURCES = proxy/main.c
 proxy_spiproxyd_LDADD = libs/libspi.a libs/libnrf24l01.a @GLIB_LIBS@
@@ -72,6 +73,12 @@ src_seriald_seriald_LDFLAGS = $(AM_LDFLAGS)
 src_seriald_seriald_CFLAGS = $(AM_CFLAGS) @GLIB_CFLAGS@ \
 				-I$(top_srcdir)/src
 
+tools_testCrypto_SOURCES = tools/testCrypto.c
+tools_testCrypto_LDADD = libs/libhallog.a libs/libsecurity.a @OPENSSL_LIBS@
+tools_testCrypto_LDFLAGS = $(AM_LDFLAGS)
+tools_testCrypto_CFLAGS = $(AM_CFLAGS) @OPENSSL_CFLAGS@ \
+				-I$(top_srcdir)/src
+
 DISTCLEANFILES =
 
 MAINTAINERCLEANFILES = Makefile.in \
@@ -79,4 +86,4 @@ MAINTAINERCLEANFILES = Makefile.in \
 	ltmain.sh depcomp compile missing install-sh
 
 clean-local:
-	$(RM) -r proxy/spiproxyd src/nrfd/nrfd src/lorad/lorad tools/rpiecho tools/sniffer
+	$(RM) -r proxy/spiproxyd src/nrfd/nrfd src/lorad/lorad tools/rpiecho tools/sniffer tools/testCrypto

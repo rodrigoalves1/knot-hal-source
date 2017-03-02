@@ -29,6 +29,7 @@ src/seriald/seriald
 src/lorad/lorad
 tools/rpiecho
 tools/sniffer
+tools/testCrypto
 
 cscope.in.out
 cscope.out
