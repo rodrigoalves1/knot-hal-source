@@ -30,6 +30,7 @@ src/lorad/lorad
 tools/rpiecho
 tools/sniffer
 tools/testCrypto
+tools/makekeys
 
 cscope.in.out
 cscope.out
