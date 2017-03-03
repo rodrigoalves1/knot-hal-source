@@ -89,6 +89,10 @@ int main(int argc, char *argv[])
 	size_t block = 32;
 	uint8_t temp[block];
 	int ciphertext_len, decryptedtext_len;
+	uint8_t keys[96];
+
+	if (generateKeys(keys) != 1)
+		return -1;
 
 	printf("Plain text in hexa: ");
 	for (uint8_t i = 0; i < MESSAGE_SIZE; i++)
