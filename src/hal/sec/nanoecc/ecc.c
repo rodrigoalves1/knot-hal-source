@@ -277,7 +277,7 @@ static void vli_modAdd(uint8_t *p_result, uint8_t *p_left, uint8_t *p_right, uin
 {
     uint8_t l_carry = vli_add(p_result, p_left, p_right);
     if(l_carry || vli_cmp(p_result, p_mod) >= 0)
-    { /* p_result > p_mod (p_result = p_mod + remainder) 
+    { /* p_result > p_mod (p_result = p_mod + remainder)
     so subtract p_mod to get remainder. */
         vli_sub(p_result, p_result, p_mod);
     }
@@ -290,7 +290,7 @@ static void vli_modSub(uint8_t *p_result, uint8_t *p_left, uint8_t *p_right, uin
     uint8_t l_borrow = vli_sub(p_result, p_left, p_right);
     if(l_borrow)
     { /* In this case, p_result == -diff == (max int) - diff.
-         Since -x % d == d - x, we can get the correct result 
+         Since -x % d == d - x, we can get the correct result
          from p_result + p_mod (with overflow). */
         vli_add(p_result, p_result, p_mod);
     }
@@ -800,7 +800,7 @@ static void vli_mmod_fast(uint8_t *p_result, uint8_t *p_product)
 #endif
 
 /* Computes p_result = (p_left * p_right) % curve_p. */
-static void vli_modMult_fast(uint8_t *p_result, 
+static void vli_modMult_fast(uint8_t *p_result,
     uint8_t *p_left, uint8_t *p_right)
 {
    uint8_t l_product[2 * NUM_ECC_DIGITS];
@@ -849,7 +849,7 @@ static void vli_modSquare_fast(uint8_t *p_result, uint8_t *p_left)
 
 #else /* ECC_SQUARE_FUNC */
 
-#define vli_square(result, left, size) vli_mult((result), 
+#define vli_square(result, left, size) vli_mult((result),
 (left), (left), (size))
 #define vli_modSquare_fast(result, left) vli_modMult_fast((result), (left), (left))
 
@@ -863,6 +863,7 @@ static void vli_modInv(uint8_t *p_result, uint8_t *p_input, uint8_t *p_mod)
 {
     uint8_t a[NUM_ECC_DIGITS], b[NUM_ECC_DIGITS], u[NUM_ECC_DIGITS], v[NUM_ECC_DIGITS];
     uint8_t l_carry;
+    int l_cmpResult;
 
     vli_set(a, p_input);
     vli_set(b, p_mod);
@@ -870,7 +871,6 @@ static void vli_modInv(uint8_t *p_result, uint8_t *p_input, uint8_t *p_mod)
     u[0] = 1;
     vli_clear(v);
 
-    int l_cmpResult;
     while((l_cmpResult = vli_cmp(a, b)) != 0)
     {
         l_carry = 0;
@@ -1219,7 +1219,8 @@ static void vli_modMult(uint8_t *p_result, uint8_t *p_left, uint8_t *p_right, ui
     uint l_digitShift, l_bitShift;
     uint l_productBits;
     uint l_modBits = vli_numBits(p_mod);
-    
+    uint8_t l_carry;
+
     vli_mult(l_product, p_left, p_right);
     l_productBits = vli_numBits(l_product + NUM_ECC_DIGITS);
     if(l_productBits)
@@ -1230,13 +1231,13 @@ static void vli_modMult(uint8_t *p_result, uint8_t *p_left, uint8_t *p_right, ui
     {
         l_productBits = vli_numBits(l_product);
     }
-    
+
     if(l_productBits < l_modBits)
     { /* l_product < p_mod. */
         vli_set(p_result, l_product);
         return;
     }
-    
+
     /* Shift p_mod by (l_leftBits - l_modBits). This multiplies p_mod by the largest
        power of two possible while still resulting in a number less than p_left. */
     vli_clear(l_modMultiple);
@@ -1266,11 +1267,11 @@ static void vli_modMult(uint8_t *p_result, uint8_t *p_left, uint8_t *p_right, ui
             }
             vli_sub(l_product + NUM_ECC_DIGITS, l_product + NUM_ECC_DIGITS, l_modMultiple + NUM_ECC_DIGITS);
         }
-        uint8_t l_carry = (l_modMultiple[NUM_ECC_DIGITS] & 0x01) << 7;
+        l_carry = (l_modMultiple[NUM_ECC_DIGITS] & 0x01) << 7;
         vli_rshift1(l_modMultiple + NUM_ECC_DIGITS);
         vli_rshift1(l_modMultiple);
         l_modMultiple[NUM_ECC_DIGITS-1] |= l_carry;
-        
+
         --l_productBits;
     }
     vli_set(p_result, l_product);
@@ -1286,21 +1287,21 @@ int ecdsa_sign(uint8_t r[NUM_ECC_DIGITS], uint8_t s[NUM_ECC_DIGITS], uint8_t p_p
 {
     uint8_t k[NUM_ECC_DIGITS];
     EccPoint p;
-    
+
     if(vli_isZero(p_random))
     { /* The random number must not be 0. */
         return 0;
     }
-    
+
     vli_set(k, p_random);
     if(vli_cmp(curve_n, k) != 1)
     {
         vli_sub(k, k, curve_n);
     }
-    
+
     /* tmp = k * G */
     EccPoint_mult(&p, &curve_G, k, NULL);
-    
+
     /* r = x1 (mod n) */
     vli_set(r, p.x);
     if(vli_cmp(curve_n, r) != 1)
@@ -1311,12 +1312,12 @@ int ecdsa_sign(uint8_t r[NUM_ECC_DIGITS], uint8_t s[NUM_ECC_DIGITS], uint8_t p_p
     { /* If r == 0, fail (need a different random number). */
         return 0;
     }
-    
+
     vli_modMult(s, r, p_privateKey, curve_n); /* s = r*d */
     vli_modAdd(s, p_hash, s, curve_n); /* s = e + r*d */
     vli_modInv(k, k, curve_n); /* k = 1 / k */
     vli_modMult(s, s, k, curve_n); /* s = (e + r*d) / k */
-    
+
     return 1;
 }
 
@@ -1330,12 +1331,16 @@ int ecdsa_verify(EccPoint *p_publicKey, uint8_t p_hash[NUM_ECC_DIGITS], uint8_t 
     uint8_t tx[NUM_ECC_DIGITS];
     uint8_t ty[NUM_ECC_DIGITS];
     uint8_t tz[NUM_ECC_DIGITS];
-    
+    EccPoint *l_points[4];
+    int l_index;
+    uint l_numBits;
+    EccPoint *l_point;
+
     if(vli_isZero(r) || vli_isZero(s))
     { /* r, s must not be 0. */
         return 0;
     }
-    
+
     if(vli_cmp(curve_n, r) != 1 || vli_cmp(curve_n, s) != 1)
     { /* r, s must be < n. */
         return 0;
@@ -1345,7 +1350,7 @@ int ecdsa_verify(EccPoint *p_publicKey, uint8_t p_hash[NUM_ECC_DIGITS], uint8_t 
     vli_modInv(z, s, curve_n); /* Z = s^-1 */
     vli_modMult(u1, p_hash, z, curve_n); /* u1 = e/s */
     vli_modMult(u2, r, z, curve_n); /* u2 = r/s */
-    
+
     /* Calculate l_sum = G + Q. */
     vli_set(l_sum.x, p_publicKey->x);
     vli_set(l_sum.y, p_publicKey->y);
@@ -1355,24 +1360,26 @@ int ecdsa_verify(EccPoint *p_publicKey, uint8_t p_hash[NUM_ECC_DIGITS], uint8_t 
     XYcZ_add(tx, ty, l_sum.x, l_sum.y);
     vli_modInv(z, z, curve_p); /* Z = 1/Z */
     apply_z(l_sum.x, l_sum.y, z);
-    
+
     /* Use Shamir's trick to calculate u1*G + u2*Q */
-    EccPoint *l_points[4] = {NULL, &curve_G, p_publicKey, &l_sum};
-    uint l_numBits = max(vli_numBits(u1), vli_numBits(u2));
-    
-    EccPoint *l_point = l_points[(!!vli_testBit(u1, l_numBits-1)) | ((!!vli_testBit(u2, l_numBits-1)) << 1)];
+    l_points[1] = NULL;
+    l_points[2] = &curve_G;
+    l_points[3] = p_publicKey;
+    l_points[4] = &l_sum;
+    l_numBits = max(vli_numBits(u1), vli_numBits(u2));
+
+    l_point = l_points[(!!vli_testBit(u1, l_numBits-1)) | ((!!vli_testBit(u2, l_numBits-1)) << 1)];
     vli_set(rx, l_point->x);
     vli_set(ry, l_point->y);
     vli_clear(z);
     z[0] = 1;
 
-    int i;
-    for(i = l_numBits - 2; i >= 0; --i)
+    for(int i = l_numBits - 2; i >= 0; --i)
     {
         EccPoint_double_jacobian(rx, ry, z);
-        
-        int l_index = (!!vli_testBit(u1, i)) | ((!!vli_testBit(u2, i)) << 1);
-        EccPoint *l_point = l_points[l_index];
+
+        l_index = (!!vli_testBit(u1, i)) | ((!!vli_testBit(u2, i)) << 1);
+        l_point = l_points[l_index];
         if(l_point)
         {
             vli_set(tx, l_point->x);
@@ -1386,7 +1393,7 @@ int ecdsa_verify(EccPoint *p_publicKey, uint8_t p_hash[NUM_ECC_DIGITS], uint8_t 
 
     vli_modInv(z, z, curve_p); /* Z = 1/Z */
     apply_z(rx, ry, z);
-    
+
     /* v = x1 (mod n) */
     if(vli_cmp(curve_n, rx) != 1)
     {
