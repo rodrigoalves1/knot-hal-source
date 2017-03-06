@@ -21,31 +21,15 @@
 #include "include/linux_log.h"
 #include "security.h"
 
-#define secp128r1	16
-#define secp192r1	24
-#define secp256r1	32
-#define secp384r1	48
-#define ECC_CURVE	secp256r1
 #define URANDOM_PATH	"/dev/urandom"
 #define ECC_RETRIES	10
 
-#if (ECC_CURVE != secp192r1 && ECC_CURVE != secp256r1 \
-	&& ECC_CURVE != secp384r1)
-	#error "Must define ECC_CURVE to one of the available curves"
-#endif
-
-#define NUM_ECC_DIGITS ECC_CURVE
 
 void encrypt_ino(uint8_t *key, uint8_t *cdata, size_t size){
-	size_t block, i;
+	size_t i;
 	/*Key Expanded Structure*/
 	aes256_ctx_t ctx;
 	uint8_t pad_value;
-
-	if (size > 16)
-		block = 32;
-	else
-		block = 16;
 
 	/* Initialize AES with Key */
 	aes256_init(key, &ctx);
@@ -149,8 +133,7 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len,
 
 void decrypt_ino(uint8_t *key, uint8_t *cdata, size_t size)
 {
-	uint8_t i;
-	uint8_t pad_value;
+	uint8_t i, pad_value, ispadded;
 	/*Key Expanded Structure */
 	aes256_ctx_t ctx;
 
@@ -163,7 +146,7 @@ void decrypt_ino(uint8_t *key, uint8_t *cdata, size_t size)
 
 	/* Unpadding PKCS7 */
 	pad_value = cdata[size-1];
-	uint8_t ispadded = 1;
+	ispadded = 1;
 	for (i = 1; i < pad_value; i++) {
 		if (cdata[size-i] != pad_value) {
 			ispadded = 0;
@@ -177,7 +160,7 @@ void decrypt_ino(uint8_t *key, uint8_t *cdata, size_t size)
 	}
 }
 
-void deriveSecret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
+void derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 			uint8_t lcpubx[], uint8_t lcpuby[], uint8_t secret[])
 {
 	/* shared secret context */
@@ -298,7 +281,7 @@ static void getRandomBytes(int randfd, void *p_dest, unsigned p_size)
 		printf("Failed to get random bytes.");
 }
 
-int generateKeys(uint8_t *keys)
+int generate_keys(uint8_t *keys)
 {
 	int randfd;
 	EccPoint l_public;
@@ -328,15 +311,4 @@ int generateKeys(uint8_t *keys)
 	memcpy(keys + (NUM_ECC_DIGITS * 2), l_public.y, NUM_ECC_DIGITS);
 
 	return 1;
-}
-
-void gen_keys_ino(uint8_t *private, uint8_t *public)
-{
-	EccPoint point;
-
-	if (ecc_make_key(&point, private, private) == 0)
-		printf("Error: Cannot generate keys. \
-					Please try another random seed.\n");
-	memcpy(public, point.x, NUM_ECC_DIGITS);
-	memcpy(public + NUM_ECC_DIGITS, point.y, NUM_ECC_DIGITS);
 }
