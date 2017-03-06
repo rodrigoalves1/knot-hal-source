@@ -36,6 +36,31 @@
 
 #define NUM_ECC_DIGITS ECC_CURVE
 
+void encrypt_ino(uint8_t *key, uint8_t *cdata, size_t size){
+	size_t block, i;
+	/*Key Expanded Structure*/
+	aes256_ctx_t ctx;
+	uint8_t pad_value;
+
+	if (size > 16)
+		block = 32;
+	else
+		block = 16;
+
+	/* Initialize AES with Key */
+	aes256_init(key, &ctx);
+
+	/* PKCS7 Padding for 16 bytes blocks */
+	pad_value = 16 - (size % 16);
+	for(i = size; i < size + pad_value; i++)
+		cdata[i] = pad_value;
+
+	/* Encrypt padded buffer */
+	aes256_enc(cdata, &ctx);
+	if (size > 16)
+		aes256_enc(cdata + 16, &ctx);
+}
+
 int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
 				unsigned char *iv, unsigned char *ciphertext)
 {
