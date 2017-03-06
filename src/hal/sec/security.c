@@ -122,6 +122,36 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len,
 	return plaintext_len;
 }
 
+void decrypt_ino(uint8_t *key, uint8_t *cdata, size_t size)
+{
+	uint8_t i;
+	uint8_t pad_value;
+	/*Key Expanded Structure */
+	aes256_ctx_t ctx;
+
+	/* Initialize AES with Key */
+	aes256_init(key, &ctx);
+	/* Decrypt data*/
+	aes256_dec(cdata, &ctx);
+	if (size > 16)
+		aes256_dec(cdata+16, &ctx);
+
+	/* Unpadding PKCS7 */
+	pad_value = cdata[size-1];
+	uint8_t ispadded = 1;
+	for (i = 1; i < pad_value; i++) {
+		if (cdata[size-i] != pad_value) {
+			ispadded = 0;
+			break;
+		}
+	}
+	if (ispadded == 1) {
+		for (i = 1; i<=pad_value; i++) {
+		cdata[size-i] = 0x00;
+		}
+	}
+}
+
 void deriveSecret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 			uint8_t lcpubx[], uint8_t lcpuby[], uint8_t secret[])
 {
