@@ -24,7 +24,8 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len,
 void deriveSecret (uint8_t stpubx[],uint8_t stpuby[], uint8_t lcpriv[],
 	uint8_t lcpubx[],  uint8_t lcpuby[], uint8_t secret[]);
 int generateKeys(uint8_t *keys);
-void gen_keys_ino(uint8_t *private, uint8_t *public);
+void encrypt_ino(uint8_t *key, uint8_t *cdata, size_t size);
+void decrypt_ino(uint8_t *key, uint8_t *cdata, size_t size);
 
 #ifdef __cplusplus
 } // extern "C"
