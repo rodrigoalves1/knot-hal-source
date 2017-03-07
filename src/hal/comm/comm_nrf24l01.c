@@ -405,10 +405,11 @@ static int read_mgmt(int spi_fd)
 
 static int write_raw(int spi_fd, int sockfd)
 {
-	int err;
+	int err, ciphertext_len;
 	struct nrf24_io_pack p;
 	struct nrf24_ll_data_pdu *opdu = (void *)p.payload;
-	size_t plen, left;
+	size_t plen, left, block;
+	uint8_t *cdata;
 
 	/* If has nothing to send, returns EBUSY */
 	if (peers[sockfd-1].len_tx == 0)
@@ -448,6 +449,21 @@ static int write_raw(int spi_fd, int sockfd)
 		/* Offset = len - left */
 		memcpy(opdu->payload, peers[sockfd-1].buffer_tx +
 			(peers[sockfd-1].len_tx - left), plen);
+
+		/*Encrypt Data*/
+		if (plen > 16)
+			block = 32;
+		else
+			block = 16;
+		cdata = opdu->payload + 2;
+
+		derive_secret (public_3x, public_3y, private_4,
+						public_4x, public_4y, skey);
+		ciphertext_len = encrypt (cdata, block, skey, 0,
+								bytebuffer);
+		memcpy(cdata, bytebuffer, ciphertext_len);
+		plen = block;
+		/*End of Encryption*/
 
 		/* Send packet */
 		err = phy_write(spi_fd, &p, plen + DATA_HDR_SIZE);
