@@ -482,8 +482,10 @@ static int write_raw(int spi_fd, int sockfd)
 static int read_raw(int spi_fd, int sockfd)
 {
 	ssize_t ilen;
-	size_t plen;
+	size_t plen, i, block, size;
 	struct nrf24_io_pack p;
+	int decryptedtext_len;
+	uint8_t temp[32];
 	const struct nrf24_ll_data_pdu *ipdu = (void *)p.payload;
 
 	p.pipe = sockfd;
@@ -493,6 +495,35 @@ static int read_raw(int spi_fd, int sockfd)
 	 * on success, the number of bytes read is returned
 	 */
 	while ((ilen = phy_read(spi_fd, &p, NRF24_MTU)) > 0) {
+		/*Decrypt Data here*/
+		size = ilen - DATA_HDR_SIZE;
+		if (size > 16)
+			block = 32;
+		else
+			block = 16;
+
+		//printf("\nsize is %d(%d)\nData is: ", size, DATA_HDR_SIZE);
+
+		for (i = 0; i < block; i++)
+			printf("0x%02X ", (unsigned)p.payload[i+2]);
+
+		derive_secret (public_3x, public_3y, private_4,
+						public_4x, public_4y, skey);
+		//uint8_t *cdata;
+		//memcpy(temp, cdata, block);
+
+		printf("Temp is (%lu):", block);
+		for (i = 0; i < block; i++)
+			printf("0x%02X ", (unsigned)temp[i]);
+
+		decryptedtext_len = decrypt(temp, block, skey, 0, bytebuffer);
+
+		printf("\nTemp decyphered(%d):\n", decryptedtext_len);
+
+		for (i = 0; i < block; i++)
+			printf("0x%02X ", (unsigned)bytebuffer[i]);
+
+		/*End of Decryption*/
 		/* Check if is data or Control */
 		switch (ipdu->lid) {
 
