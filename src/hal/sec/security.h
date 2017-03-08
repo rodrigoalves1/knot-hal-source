@@ -25,20 +25,19 @@ extern "C"{
 
 #if (ECC_CURVE != secp192r1 && ECC_CURVE != secp256r1 \
 	&& ECC_CURVE != secp384r1)
-	#error "Must define ECC_CURVE to one of the available curves"
+	#error "ERROR_CURVE_NOT_DEFINED"
 #endif
 
 #define NUM_ECC_DIGITS ECC_CURVE
 
-size_t encrypt(uint8_t *plaintext, size_t plaintext_len,
+int encrypt(uint8_t *plaintext, size_t plaintext_len,
 			uint8_t *key, uint8_t *iv);
 int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 			uint8_t *key, uint8_t *iv);
-void derive_secret (uint8_t stpubx[],uint8_t stpuby[], uint8_t lcpriv[],
-	uint8_t lcpubx[],  uint8_t lcpuby[], uint8_t secret[]);
+int derive_secret(uint8_t stpubx[],uint8_t stpuby[], uint8_t lcpriv[],
+			uint8_t lcpubx[],  uint8_t lcpuby[], uint8_t secret[]);
 int generate_keys(uint8_t *keys);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
