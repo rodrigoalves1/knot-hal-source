@@ -19,18 +19,44 @@
 #include <openssl/conf.h>
 
 #include "nanoecc/ecc.h"
+#include "aes/aes.h"
 #include "include/linux_log.h"
 #include "security.h"
 
 #define URANDOM_PATH	"/dev/urandom"
 #define ECC_RETRIES	10
 
-int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
-				unsigned char *iv, unsigned char *ciphertext)
+size_t encrypt(uint8_t *plaintext, size_t plaintext_len,
+					uint8_t *key, unsigned char *iv)
 {
+	#ifdef ARDUINO
+	
+	size_t i;
+	uint8_t pad_value;
+
+	/*Key Expanded Structure*/
+	aes256_ctx_t ctx;
+
+	/* Initialize AES with Key */
+	aes256_init(key, &ctx);
+
+	/* PKCS7 Padding for 16 bytes blocks */
+	pad_value = 16 - (plaintext_len % 16);
+	for(i = plaintext_len; i < plaintext_len + pad_value; i++)
+		plaintext[i] = pad_value;
+
+	/* Encrypt padded buffer */
+	aes256_enc(plaintext, &ctx);
+	if (plaintext_len > 16)
+		aes256_enc(plaintext + 16, &ctx);
+
+	return plaintext_len+pad_value;
+
+	#else
+
 	EVP_CIPHER_CTX *ctx;
-	int len;
-	int ciphertext_len;
+	int len, ciphertext_len;
+	uint8_t ciphertext[NUM_ECC_DIGITS];
 	/* Create and initialize the context */
 	ctx = EVP_CIPHER_CTX_new();
 	if (!ctx)
@@ -66,14 +92,50 @@ int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
 	EVP_CIPHER_CTX_free(ctx);
 
 	return ciphertext_len;
+
+	#endif
+
 }
 
-int decrypt(unsigned char *ciphertext, int ciphertext_len,
-		unsigned char *key, unsigned char *iv, unsigned char *plaintext)
+int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
+		uint8_t *key, uint8_t *iv)
 {
+
+	#ifdef ARDUINO
+
+	uint8_t i, pad_value, ispadded;
+	/*Key Expanded Structure */
+	aes256_ctx_t ctx;
+
+	/* Initialize AES with Key */
+	aes256_init(key, &ctx);
+	
+	/* Decrypt data*/
+	aes256_dec(ciphertext, &ctx);
+	if (ciphertext_len > 16)
+		aes256_dec(ciphertext+16, &ctx);
+
+	/* Unpadding PKCS7 */
+	pad_value = ciphertext[size-1];
+	ispadded = 1;
+	for (i = 1; i < pad_value; i++) {
+		if (ciphertext[size-i] != pad_value) {
+			ispadded = 0;
+			/*TO-DO: Define err number*/
+			return -1;
+		}
+	}
+	if (ispadded == 1) 
+		for (i = 1; i <= pad_value; i++) 
+			cdata[size-i] = 0x00;
+		
+
+	#else
+
 	EVP_CIPHER_CTX *ctx;
 	int len;
 	int plaintext_len;
+	uint8_t plaintext[NUM_ECC_DIGITS];
 
 	/* Create and initialize the context */
 	ctx = EVP_CIPHER_CTX_new();
@@ -107,6 +169,8 @@ int decrypt(unsigned char *ciphertext, int ciphertext_len,
 	plaintext_len += len;
 	/* Clean up */
 	EVP_CIPHER_CTX_free(ctx);
+
+	memcpy(ciphertext, plaintext, plaintext_len);
 
 	return plaintext_len;
 }
@@ -221,6 +285,7 @@ void derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 	EC_POINT_free(ptlocal);
 	EC_POINT_free(ptimport);
 	BN_CTX_free(bnctx);
+	#endif
 }
 
 extern void EccPoint_mult(EccPoint * p_result, EccPoint * p_point,
