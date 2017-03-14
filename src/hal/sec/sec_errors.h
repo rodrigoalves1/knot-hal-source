@@ -34,6 +34,7 @@ extern "C" {
 #define ERROR_BAD_PADDING			-22 /* Error while unpadding data */
 #define	ERROR_CURVE_NOT_DEFINED		-23 /* ECC curve hasn't been defined */
 #define ERROR_NANO_DERIVE_SKEY		-24 /* Error derivating key on nanoecc */
+#define ERROR_FUNCTION_UNAVALIABLE	-25 /* Function currently unavaliable */
 
 #ifdef __cplusplus
 }

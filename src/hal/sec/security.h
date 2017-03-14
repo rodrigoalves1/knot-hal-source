@@ -1,5 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef ARDUINO
+/*FIX ME: Thing will need to access nanoecc and aes libs	*/
+#include "sec/nanoecc/ecc.h"
+#include "sec/aes/aes.h"
+#else
 #include <openssl/obj_mac.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
@@ -12,6 +17,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
+#endif
 
 #ifdef __cplusplus
 extern "C"{

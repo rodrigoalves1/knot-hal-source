@@ -15,9 +15,12 @@
 #ifdef ARDUINO
 #include "include/avr_errno.h"
 #include "include/avr_unistd.h"
+/*FIX-ME: Thing must access security.h*/
+#include "sec/security.h"
 #else
 #include <errno.h>
 #include <unistd.h>
+#include "src/hal/sec/security.h"
 #endif
 
 #include "include/nrf24.h"
@@ -27,7 +30,7 @@
 #include "phy_driver.h"
 #include "phy_driver_nrf24.h"
 #include "nrf24l01_ll.h"
-#include "src/hal/sec/security.h"
+
 
 #define _MIN(a, b)		((a) < (b) ? (a) : (b))
 #define DATA_SIZE 128

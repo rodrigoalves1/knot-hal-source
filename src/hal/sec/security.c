@@ -1,12 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <assert.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
+#ifdef ARDUINO
+/*FIX ME: Thing will need to access nanoecc and aes libs	*/
+#include "sec/nanoecc/ecc.h"
+#include "sec/aes/aes.h"
+
+#else
 
 #include <openssl/obj_mac.h>
 #include <openssl/ec.h>
@@ -17,11 +14,22 @@
 #include <openssl/aes.h>
 #include <openssl/rand.h>
 #include <openssl/conf.h>
-
 #include "nanoecc/ecc.h"
 #include "aes/aes.h"
 #include "include/linux_log.h"
 #include "security.h"
+
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <assert.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
 
 #define URANDOM_PATH	"/dev/urandom"
 #define ECC_RETRIES	10
@@ -118,17 +126,17 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 		aes256_dec(ciphertext+16, &ctx);
 
 	/* Unpadding PKCS7 */
-	pad_value = ciphertext[size-1];
+	pad_value = ciphertext[ciphertext_len-1];
 	ispadded = 1;
 	for (i = 1; i < pad_value; i++) {
-		if (ciphertext[size-i] != pad_value) {
+		if (ciphertext[ciphertext_len-i] != pad_value) {
 			ispadded = 0;
 			return -22;
 		}
 	}
 	if (ispadded == 1) 
 		for (i = 1; i <= pad_value; i++) 
-			cdata[size-i] = 0x00;
+			ciphertext[ciphertext_len-i] = 0x00;
 	
 	return 1;		
 
@@ -190,7 +198,8 @@ int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 	EccPoint ecp;
 	memcpy(ecp.x,stpubx,NUM_ECC_DIGITS);
 	memcpy(ecp.y,stpuby,NUM_ECC_DIGITS);
-
+	
+	#ifdef __cplusplus
 	extern "C" {
 		if (ecdh_shared_secret(skey, &ecp, lcpriv, iv) == 1) {
 			ecc_native2bytes (bytebuffer, skey);
@@ -200,10 +209,10 @@ int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 			return-24;
 		}
 	}
+	#endif
 
 
 	#else
-
 	/* shared secret context */
 	EVP_PKEY_CTX *ctx;
 	/* shared secret */
@@ -330,6 +339,9 @@ static int getRandomBytes(int randfd, void *p_dest, unsigned p_size)
 
 int generate_keys(uint8_t *keys)
 {
+	#ifdef ARDUINO
+		return -25;
+	#else
 	int randfd, randb;
 	EccPoint l_public;
 	uint8_t l_private[NUM_ECC_DIGITS];
@@ -357,4 +369,5 @@ int generate_keys(uint8_t *keys)
 	memcpy(keys + (NUM_ECC_DIGITS * 2), l_public.y, NUM_ECC_DIGITS);
 
 	return 1;
+	#endif
 }
