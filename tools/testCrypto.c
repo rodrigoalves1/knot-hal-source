@@ -86,35 +86,42 @@ uint8_t iv = 0x00;
 int main(int argc, char *argv[])
 {
 	/*secret key and auxiliar buffer*/
-	uint8_t bytebuffer[48];
+	uint8_t bytebuffer[32];
 	uint8_t skey[32];
-	size_t block = 32;
-	uint8_t temp[block];
-	int ciphertext_len, decryptedtext_len;
+	int ciphertext_len, decryptedtext_len, err;
 	uint8_t keys[96];
 
 	if (generate_keys(keys) != 1)
 		return -1;
 
-	printf("Plain text in hexa: ");
-	for (uint8_t i = 0; i < MESSAGE_SIZE; i++)
-		printf("0x%02X ", MESSAGE[i]);
-
-	derive_secret(public_3x, public_3y, private_4, public_4x, public_4y,
+	err = derive_secret(public_3x, public_3y, private_4, public_4x, public_4y,
 									skey, &iv);
-	ciphertext_len = encrypt((unsigned char *)MESSAGE, MESSAGE_SIZE, skey, &iv);
 
-	printf("\nciphertext_len(%d):\n", ciphertext_len);
+	printf("Derive Err: %d\n", err);
+
+	printf("Secret key:\n");
+	for (uint8_t i = 0; i < 32; i++)
+		printf("0x%02X ", (unsigned) skey[i]);
+
+	memcpy(bytebuffer, MESSAGE, MESSAGE_SIZE);
+
+	printf("\nPlain text in hexa:\n");
+	for (uint8_t i = 0; i < MESSAGE_SIZE; i++)
+		printf("0x%02X ", (unsigned) bytebuffer[i]);
+
+	ciphertext_len = encrypt(bytebuffer, MESSAGE_SIZE, skey, &iv);
+
+	printf("\nciphertext:  len(%d):\n", ciphertext_len);
 	for (uint8_t i = 0; i < ciphertext_len; i++)
 		printf("0x%02X ", (unsigned) bytebuffer[i]);
 	printf("\n");
 	/*End of Encryption*/
 
 	decryptedtext_len = decrypt(bytebuffer, ciphertext_len, skey, &iv);
-	printf("\nbytebuffer(%d):\n", decryptedtext_len);
+	printf("decipheredtext:  len(%d):\n", decryptedtext_len);
 
 	for (uint8_t i = 0; i < decryptedtext_len; i++)
-		printf("0x%02X ", (unsigned) temp[i]);
+		printf("0x%02X ", (unsigned) bytebuffer[i]);
 	printf("\n");
 
 	/*End of Decryption*/

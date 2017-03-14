@@ -91,6 +91,8 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 	/* Clean up */
 	EVP_CIPHER_CTX_free(ctx);
 
+	memcpy(plaintext, ciphertext, ciphertext_len);
+
 	return ciphertext_len;
 
 	#endif
