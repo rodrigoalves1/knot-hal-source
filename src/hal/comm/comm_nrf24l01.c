@@ -239,7 +239,7 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 		block = 16;
 
 	derive_secret (public_3x, public_3y, private_4,
-					public_4x, public_4y, skey);
+					public_4x, public_4y, skey, 0);
 
 	err = encrypt(cdata, block, skey, &iv);
 
@@ -462,7 +462,7 @@ static int write_raw(int spi_fd, int sockfd)
 		cdata = opdu->payload + 2;
 
 		derive_secret (public_3x, public_3y, private_4,
-						public_4x, public_4y, skey);
+						public_4x, public_4y, skey, 0);
 		
 		err = encrypt(cdata, block, skey, &iv);
 		if (err < 0)

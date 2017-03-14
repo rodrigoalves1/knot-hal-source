@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 		printf("0x%02X ", MESSAGE[i]);
 
 	derive_secret(public_3x, public_3y, private_4, public_4x, public_4y,
-									skey);
+									skey, &iv);
 	ciphertext_len = encrypt((unsigned char *)MESSAGE, MESSAGE_SIZE, skey, &iv);
 
 	printf("\nciphertext_len(%d):\n", ciphertext_len);

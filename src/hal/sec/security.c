@@ -173,11 +173,35 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 	memcpy(ciphertext, plaintext, plaintext_len);
 
 	return plaintext_len;
+
+	#endif
 }
 
 int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
-			uint8_t lcpubx[], uint8_t lcpuby[], uint8_t secret[])
+				uint8_t lcpubx[], uint8_t lcpuby[], uint8_t secret[],
+				uint8_t *iv)
 {
+
+	#ifdef ARDUINO
+
+	uint8_t bytebuffer[NUM_ECC_DIGITS];
+	EccPoint ecp;
+	memcpy(ecp.x,stpubx,NUM_ECC_DIGITS);
+	memcpy(ecp.y,stpuby,NUM_ECC_DIGITS);
+
+	extern "C" {
+		if (ecdh_shared_secret(skey, &ecp, lcpriv, iv) == 1) {
+			ecc_native2bytes (bytebuffer, skey);
+			memcpy(skey, bytebuffer, NUM_ECC_DIGITS);
+			return 1;
+		} else {
+			return-24;
+		}
+	}
+
+
+	#else
+
 	/* shared secret context */
 	EVP_PKEY_CTX *ctx;
 	/* shared secret */
@@ -288,6 +312,7 @@ int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 	BN_CTX_free(bnctx);
 
 	return 1;
+
 	#endif
 }
 

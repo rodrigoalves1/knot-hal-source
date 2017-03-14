@@ -33,6 +33,7 @@ extern "C" {
 #define ERROR_ECC_MK_KEYS			-21 /* Invalid random bytes to make keys */
 #define ERROR_BAD_PADDING			-22 /* Error while unpadding data */
 #define	ERROR_CURVE_NOT_DEFINED		-23 /* ECC curve hasn't been defined */
+#define ERROR_NANO_DERIVE_SKEY		-24 /* Error derivating key on nanoecc */
 
 #ifdef __cplusplus
 }
