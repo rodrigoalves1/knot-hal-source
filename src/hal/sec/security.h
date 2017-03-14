@@ -1,5 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef ARDUINO
+/*FIX ME: Thing will need to access nanoecc and aes libs	*/
+#include "sec/nanoecc/ecc.h"
+#include "sec/aes/aes.h"
+#else
 #include <openssl/obj_mac.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
@@ -12,6 +17,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
+#endif
 
 #ifdef __cplusplus
 extern "C"{
@@ -34,8 +40,8 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 			uint8_t *key, uint8_t *iv);
 int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 			uint8_t *key, uint8_t *iv);
-int derive_secret(uint8_t stpubx[],uint8_t stpuby[], uint8_t lcpriv[],
-			uint8_t lcpubx[],  uint8_t lcpuby[], uint8_t secret[]);
+int derive_secret(uint8_t stpx[],uint8_t stpy[], uint8_t lcpriv[],
+			uint8_t lcpx[], uint8_t lcpy[], uint8_t secret[], uint8_t *iv);
 int generate_keys(uint8_t *keys);
 
 #ifdef __cplusplus

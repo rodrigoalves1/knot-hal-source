@@ -15,9 +15,12 @@
 #ifdef ARDUINO
 #include "include/avr_errno.h"
 #include "include/avr_unistd.h"
+/*FIX-ME: Thing must access security.h*/
+#include "sec/security.h"
 #else
 #include <errno.h>
 #include <unistd.h>
+#include "src/hal/sec/security.h"
 #endif
 
 #include "include/nrf24.h"
@@ -27,7 +30,7 @@
 #include "phy_driver.h"
 #include "phy_driver_nrf24.h"
 #include "nrf24l01_ll.h"
-#include "src/hal/sec/security.h"
+
 
 #define _MIN(a, b)		((a) < (b) ? (a) : (b))
 #define DATA_SIZE 128
@@ -239,7 +242,7 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 		block = 16;
 
 	derive_secret (public_3x, public_3y, private_4,
-					public_4x, public_4y, skey);
+					public_4x, public_4y, skey, 0);
 
 	err = encrypt(cdata, block, skey, &iv);
 
@@ -462,7 +465,7 @@ static int write_raw(int spi_fd, int sockfd)
 		cdata = opdu->payload + 2;
 
 		derive_secret (public_3x, public_3y, private_4,
-						public_4x, public_4y, skey);
+						public_4x, public_4y, skey, 0);
 		
 		err = encrypt(cdata, block, skey, &iv);
 		if (err < 0)
