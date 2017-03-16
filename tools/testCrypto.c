@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include "src/hal/sec/security.h"
 #include "src/hal/sec/nanoecc/ecc.h"
+#include "src/hal/sec/aes/aes.h"
 
 #define _MIN(a, b)		((a) < (b) ? (a) : (b))
 #define MESSAGE "T"
@@ -82,6 +83,7 @@ uint8_t public_3y[NUM_ECC_DIGITS] = {0xF4, 0x60, 0xB9, 0x86, 0x5A, 0xC5, \
 */
 // set IV
 uint8_t iv = 0x00;
+uint8_t i;
 
 int main(int argc, char *argv[])
 {
@@ -100,27 +102,28 @@ int main(int argc, char *argv[])
 	printf("Derive Err: %d\n", err);
 
 	printf("Secret key:\n");
-	for (uint8_t i = 0; i < 32; i++)
+	for (i = 0; i < 32; i++)
 		printf("0x%02X ", (unsigned) skey[i]);
 
 	memcpy(bytebuffer, MESSAGE, MESSAGE_SIZE);
 
 	printf("\nPlain text in hexa:\n");
-	for (uint8_t i = 0; i < MESSAGE_SIZE; i++)
+	for (i = 0; i < MESSAGE_SIZE; i++)
 		printf("0x%02X ", (unsigned) bytebuffer[i]);
 
 	ciphertext_len = encrypt(bytebuffer, MESSAGE_SIZE, skey, &iv);
 
 	printf("\nciphertext:  len(%d):\n", ciphertext_len);
-	for (uint8_t i = 0; i < ciphertext_len; i++)
+	for (i = 0; i < ciphertext_len; i++)
 		printf("0x%02X ", (unsigned) bytebuffer[i]);
 	printf("\n");
 	/*End of Encryption*/
 
 	decryptedtext_len = decrypt(bytebuffer, ciphertext_len, skey, &iv);
+
 	printf("decipheredtext:  len(%d):\n", decryptedtext_len);
 
-	for (uint8_t i = 0; i < decryptedtext_len; i++)
+	for (i = 0; i < decryptedtext_len; i++)
 		printf("0x%02X ", (unsigned) bytebuffer[i]);
 	printf("\n");
 

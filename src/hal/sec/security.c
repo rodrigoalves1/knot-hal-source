@@ -2,7 +2,7 @@
 /*FIX ME: Thing will need to access nanoecc and aes libs	*/
 #include "sec/nanoecc/ecc.h"
 #include "sec/aes/aes.h"
-
+#include "sec/sec_errors.h"
 #else
 
 #include <openssl/obj_mac.h>
@@ -18,7 +18,7 @@
 #include "aes/aes.h"
 #include "include/linux_log.h"
 #include "security.h"
-
+#include "sec_errors.h"
 #endif
 
 #include <stdio.h>
@@ -68,7 +68,7 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 	/* Create and initialize the context */
 	ctx = EVP_CIPHER_CTX_new();
 	if (!ctx)
-		return -1;
+		return ERROR_EVP_CIPHER_CTX_NEW;
 	/*
 	 * Initialize the encryption operation. IMPORTANT - ensure you use a key
 	 * and IV size appropriate for your cipher
@@ -77,14 +77,14 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 	 * is 128 bits
 	 */
 	if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
-		return -2;
+		return ERROR_EVP_ENC_INIT;
 	/*
 	 * Provide the message to be encrypted, and obtain the encrypted output.
 	 * EVP_EncryptUpdate can be called multiple times if necessary
 	 */
 	if (EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext,
 							plaintext_len) != 1)
-		return -3;
+		return ERROR_EVP_ENC_UPDATE;
 
 	ciphertext_len = len;
 	/*
@@ -92,7 +92,7 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 	 * this stage.
 	 */
 	if (EVP_EncryptFinal_ex(ctx, ciphertext + len, &len) != 1)
-		return -4;
+		return ERROR_EVP_ENC_FINAL;
 
 	ciphertext_len += len;
 
@@ -131,14 +131,14 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 	for (i = 1; i < pad_value; i++) {
 		if (ciphertext[ciphertext_len-i] != pad_value) {
 			ispadded = 0;
-			return -22;
+			return ERROR_BAD_PADDING;
 		}
 	}
 	if (ispadded == 1) 
 		for (i = 1; i <= pad_value; i++) 
 			ciphertext[ciphertext_len-i] = 0x00;
 	
-	return 1;		
+	return ciphertext_len-pad_value;		
 
 	#else
 
@@ -150,7 +150,7 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 	/* Create and initialize the context */
 	ctx = EVP_CIPHER_CTX_new();
 	if (!ctx)
-		return -1;
+		return ERROR_EVP_CIPHER_CTX_NEW;
 	/*
 	 * Initialize the decryption operation. IMPORTANT - ensure you use a key
 	 * and IV size appropriate for your cipher
@@ -159,14 +159,14 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 	 * is 128 bits
 	 */
 	if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
-		return -5;
+		return ERROR_EVP_DEC_INIT;
 	/*
 	 * Provide the message to be decrypted, and obtain the plaintext output.
 	 * EVP_DecryptUpdate can be called multiple times if necessary
 	 */
 	if (EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext,
 							ciphertext_len) != 1)
-		return -6;
+		return ERROR_EVP_DEC_UPDATE;
 
 	plaintext_len = len;
 	/*
@@ -174,7 +174,7 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 	 * this stage.
 	 */
 	if (EVP_DecryptFinal_ex(ctx, plaintext + len, &len) != 1)
-		return -7;
+		return ERROR_EVP_DEC_FINAL;
 
 	plaintext_len += len;
 	/* Clean up */
@@ -206,7 +206,7 @@ int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 			memcpy(skey, bytebuffer, NUM_ECC_DIGITS);
 			return 1;
 		} else {
-			return-24;
+			return ERROR_NANO_DERIVE_SKEY;
 		}
 	}
 	#endif
@@ -254,11 +254,11 @@ int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 	/* Creating keys from curve */
 	myecc = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 	if (myecc == NULL)
-		return -8;
+		return ERROR_ECC_LOC_PKEY_CURVE;
 
 	peerecc = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 	if (peerecc == NULL)
-		return -9;
+		return ERROR_ECC_PEER_PKEY_CURVE;
 
 	/* Certificate sign using OPENSSL_EC_NAMED_CURVE flag */
 	EC_KEY_set_asn1_flag(myecc, OPENSSL_EC_NAMED_CURVE);
@@ -266,44 +266,44 @@ int derive_secret(uint8_t stpubx[], uint8_t stpuby[], uint8_t lcpriv[],
 
 	/* Setting public keys (local and imported) on EC_KEY */
 	if (EC_KEY_set_public_key(myecc, ptlocal) != 1)
-		return -10;
+		return ERROR_ECC_SET_LOC_PKEY;
 	if (EC_KEY_set_public_key(peerecc, ptimport) != 1)
-		return -11;
+		return ERROR_ECC_SET_PEER_PKEY;
 	/* Setting private local key on EC_KEY */
 	if (EC_KEY_set_private_key(myecc, prv) != 1)
-		return -12;
+		return ERROR_ECC_SET_PRIV_KEY;
 
 	/* Creating EVP_KEY struct to derive shared secret */
 	peerkey = EVP_PKEY_new();
 
 	/* Checks peerecc value */
 	if (!EVP_PKEY_assign_EC_KEY(peerkey, peerecc))
-		return -13;
+		return ERROR_EVP_ASSIGN_PEER;
 
 	pkey = EVP_PKEY_new();
 	/* Checks myecc value */
 	if (!EVP_PKEY_assign_EC_KEY(pkey, myecc))
-		return -14;
+		return ERROR_EVP_ASSIGN_KEY;
 
 	/* Generating context for shared secret derivation */
 	ctx = EVP_PKEY_CTX_new(pkey, NULL);
 	if (ctx == NULL)
-		return -1;
+		return ERROR_EVP_CIPHER_CTX_NEW;
 	/* Initializing context */
 	if (EVP_PKEY_derive_init(ctx) != 1)
-		return -15;
+		return ERROR_EVP_DERIVE_INIT;
 	/* Setting imported public key onto derivation */
 	if (EVP_PKEY_derive_set_peer(ctx, peerkey) != 1)
-		return -16;
+		return ERROR_EVP_DERIVE_SET_PEER;
 	/* Dynamically allocating buffer size */
 	if (EVP_PKEY_derive(ctx, NULL, &skeylen) <= 0)
-		return -17;
+		return ERROR_EVP_DERIVE_ALLOC;
 
 	skey = OPENSSL_malloc(skeylen);
 
 	/* Derive shared secret */
 	if ((EVP_PKEY_derive(ctx, skey, &skeylen)) != 1)
-		return -18;
+		return ERROR_EVP_DERIVE;
 	/* Placing Secret */
 	memcpy(secret, skey, skeylen);
 
@@ -333,14 +333,14 @@ extern void EccPoint_mult(EccPoint * p_result, EccPoint * p_point,
 static int getRandomBytes(int randfd, void *p_dest, unsigned p_size)
 {
 	if (read(randfd, p_dest, p_size) != (int)p_size)
-		return -19;
+		return ERROR_GET_RANDOM;
 	return 1;
 }
 
 int generate_keys(uint8_t *keys)
 {
 	#ifdef ARDUINO
-		return -25;
+		return ERROR_FUNCTION_UNAVALIABLE;
 	#else
 	int randfd, randb;
 	EccPoint l_public;
@@ -350,7 +350,7 @@ int generate_keys(uint8_t *keys)
 
 	randfd = open(URANDOM_PATH, O_RDONLY);
 	if (randfd == -1)
-		return -20;
+		return ERROR_ACCESS_URANDOM;
 
 	/* if make_keys fails, try renew random values and retry */
 
@@ -362,7 +362,7 @@ int generate_keys(uint8_t *keys)
 		if (randb < 0)
 			return randb;
 		if (count > ECC_RETRIES)
-			return -21;
+			return ERROR_ECC_MK_KEYS;
 	}
 	memcpy(keys, l_private, NUM_ECC_DIGITS);
 	memcpy(keys + NUM_ECC_DIGITS, l_public.x, NUM_ECC_DIGITS);

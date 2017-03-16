@@ -1332,7 +1332,7 @@ int ecdsa_verify(EccPoint *p_publicKey, uint8_t p_hash[NUM_ECC_DIGITS], uint8_t 
     uint8_t ty[NUM_ECC_DIGITS];
     uint8_t tz[NUM_ECC_DIGITS];
     EccPoint *l_points[4];
-    int l_index;
+    int l_index, i;
     uint l_numBits;
     EccPoint *l_point;
 
@@ -1373,8 +1373,8 @@ int ecdsa_verify(EccPoint *p_publicKey, uint8_t p_hash[NUM_ECC_DIGITS], uint8_t 
     vli_set(ry, l_point->y);
     vli_clear(z);
     z[0] = 1;
-
-    for(int i = l_numBits - 2; i >= 0; --i)
+    
+    for(i = l_numBits - 2; i >= 0; --i)
     {
         EccPoint_double_jacobian(rx, ry, z);
 
