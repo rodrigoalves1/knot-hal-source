@@ -456,21 +456,21 @@ static int write_raw(int spi_fd, int sockfd)
 			(peers[sockfd-1].len_tx - left), plen);
 
 		/*Encrypt Data*/
-		
+
 		if (plen > 16)
 			block = 32;
 		else
 			block = 16;
-		
+
 		cdata = opdu->payload + 2;
 
 		derive_secret (public_3x, public_3y, private_4,
 						public_4x, public_4y, skey, 0);
-		
+
 		err = encrypt(cdata, block, skey, &iv);
 		if (err < 0)
 			return err;
-		
+
 		plen = block;
 
 		/*End of Encryption*/
@@ -511,11 +511,12 @@ static int read_raw(int spi_fd, int sockfd)
 	size_t plen, block;
 	struct nrf24_io_pack p;
 	/*Size also holds err value in case size < 0*/
-	int size;
+	int size, i;
 	uint8_t *cdata = p.payload+2;
 
 	const struct nrf24_ll_data_pdu *ipdu = (void *)p.payload;
 
+	printf("Reading data...\n");
 	p.pipe = sockfd;
 	p.payload[0] = 0;
 	/*
@@ -523,22 +524,31 @@ static int read_raw(int spi_fd, int sockfd)
 	 * on success, the number of bytes read is returned
 	 */
 	while ((ilen = phy_read(spi_fd, &p, NRF24_MTU)) > 0) {
-		
 		size = ilen - DATA_HDR_SIZE;
-		
+
 		/*Decrypt Data here*/
 		if (size > 16)
 			block = 32;
 		else
 			block = 16;
 
+		printf("Encrypted data is (%d):\n", size );
+		for (i = 0; i < size; i++){
+			printf("0x%02X ", (unsigned) cdata[i]);
+		}
+
 		size = decrypt(cdata, block, skey, 0);
-		
+
+		printf("Decrypted data is (%d):\n", size );
+		for (i = 0; i < size; i++){
+			printf("0x%02X ", (unsigned) cdata[i]);
+		}
+
 		if (size < 0)
 			return size;
 
 		/*End of Decryption*/
-		
+
 		/* Check if is data or Control */
 		switch (ipdu->lid) {
 
