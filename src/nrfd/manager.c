@@ -789,6 +789,8 @@ done:
 	/*Send Connect */
 	hal_comm_connect(peers[position].socket_fd,
 			&evt_pre->mac.address.uint64);
+	hal_log_info("Sent connect request to MAC = %s", mac_str);
+
 	return 0;
 }
 
