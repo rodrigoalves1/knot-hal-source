@@ -242,7 +242,7 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 		block = 16;
 
 	derive_secret (public_3x, public_3y, private_4,
-					public_4x, public_4y, skey, 0);
+					public_4x, public_4y, skey, &iv);
 
 	err = encrypt(cdata, block, skey, &iv);
 	if (err) {
@@ -471,7 +471,7 @@ static int write_raw(int spi_fd, int sockfd)
 		cdata = opdu->payload + 2;
 
 		derive_secret (public_3x, public_3y, private_4,
-						public_4x, public_4y, skey, 0);
+						public_4x, public_4y, skey, &iv);
 
 		err = encrypt(cdata, block, skey, &iv);
 		if (err < 0) {
@@ -540,12 +540,14 @@ static int read_raw(int spi_fd, int sockfd)
 		else
 			block = 16;
 
+	derive_secret (public_3x, public_3y, private_4,
+					public_4x, public_4y, skey, &iv);
 		printf("Encrypted data is (%d):\n", size );
 		for (i = 0; i < size; i++){
 			printf("0x%02X ", (unsigned) cdata[i]);
 		}
 
-		size = decrypt(cdata, block, skey, 0);
+		size = decrypt(cdata, block, skey, &iv);
 
 		printf("Decrypted data is (%d):\n", size );
 		for (i = 0; i < size; i++){
