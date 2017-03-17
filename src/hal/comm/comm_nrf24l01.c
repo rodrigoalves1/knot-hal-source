@@ -245,6 +245,10 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 					public_4x, public_4y, skey, 0);
 
 	err = encrypt(cdata, block, skey, &iv);
+	if (err) {
+		printf("Encryption keepalive failed\n");
+		return err;
+	}
 
 	size = block;
 	/*End of Encryption*/
@@ -252,8 +256,10 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 	/* Sends keep alive packet */
 	err = phy_write(spi_fd, &p, size);
 
-	if (err < 0)
+	if (err < 0) {
+		printf("Sending data failed\n");
 		return err;
+	}
 
 	return 0;
 }
@@ -468,8 +474,10 @@ static int write_raw(int spi_fd, int sockfd)
 						public_4x, public_4y, skey, 0);
 
 		err = encrypt(cdata, block, skey, &iv);
-		if (err < 0)
+		if (err < 0) {
+			printf("Encryption failed\n");
 			return err;
+		}
 
 		plen = block;
 
@@ -482,11 +490,12 @@ static int write_raw(int spi_fd, int sockfd)
 		 * and sequence number
 		 */
 		if (err < 0) {
+			printf("Sending data failed\n");
 			peers[sockfd-1].len_tx = 0;
 			peers[sockfd-1].seqnumber_tx = 0;
 			return err;
 		}
-
+		printf("Data sent\n");
 		left -= plen;
 		peers[sockfd-1].seqnumber_tx++;
 	}
@@ -516,7 +525,6 @@ static int read_raw(int spi_fd, int sockfd)
 
 	const struct nrf24_ll_data_pdu *ipdu = (void *)p.payload;
 
-	printf("Reading data...\n");
 	p.pipe = sockfd;
 	p.payload[0] = 0;
 	/*
