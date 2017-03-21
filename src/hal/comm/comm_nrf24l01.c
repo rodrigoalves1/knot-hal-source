@@ -40,7 +40,10 @@
 
 /* secret key and auxiliar buffer*/
 uint8_t bytebuffer[48];
-uint8_t skey[32];
+uint8_t skey[32] = {0x8F, 0xF6, 0x72, 0x48, 0x0E, 0xD1, 0xF5, 0x7E, 0x50, 0x6C, 0x03, 0xB6,\
+			 0x81, 0x37, 0xCB, 0x81, 0xC9, 0x16, 0x24, 0x09, 0x18, 0x7F, 0x35, 0x0B,\
+			 0x34, 0xD5, 0xB7, 0x34, 0xAA, 0x78, 0x21, 0x4B};
+uint8_t sskey[32] = {0x28, 0xE1, 0x90, 0x25, 0x6F, 0x7D, 0x64, 0xB8, 0x36, 0x60, 0x0C, 0xE6, 0x2F, 0xB5, 0xED, 0x3A, 0x6B, 0xD6, 0x6F, 0x25, 0x79, 0x9C, 0xD8, 0x8D, 0x46, 0x60, 0xF3, 0xCE, 0x3B, 0x6D, 0x1E, 0x1F};
 uint8_t iv = 0x00;
 
 uint8_t private_4[NUM_ECC_DIGITS] = {0xA3, 0xB0, 0x24, 0xBB, 0xA9, \
@@ -241,10 +244,7 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 	else
 		block = 16;
 
-	derive_secret (public_3x, public_3y, private_4,
-					public_4x, public_4y, skey, &iv);
-
-	err = encrypt(cdata, block, skey, &iv);
+	err = encrypt(cdata, block, sskey, &iv);
 	if (err) {
 		printf("Encryption keepalive failed\n");
 		return err;
@@ -416,10 +416,12 @@ static int read_mgmt(int spi_fd)
 
 static int write_raw(int spi_fd, int sockfd)
 {
-	int err;
+
+	int err, i = 0;
 	struct nrf24_io_pack p;
 	struct nrf24_ll_data_pdu *opdu = (void *)p.payload;
-	size_t plen, left, block;
+	ssize_t plen;
+	size_t left, block;
 	uint8_t *cdata;
 
 	/* If has nothing to send, returns EBUSY */
@@ -470,21 +472,34 @@ static int write_raw(int spi_fd, int sockfd)
 
 		cdata = opdu->payload + 2;
 
-		derive_secret (public_3x, public_3y, private_4,
-						public_4x, public_4y, skey, &iv);
+		for (i = 0; i < plen; i++){
+			printf("0x%02X ", (unsigned) opdu->payload[i]);
+		}
 
-		err = encrypt(cdata, block, skey, &iv);
+		//err = derive_secret (public_3x, public_3y, private_4,
+			//			public_4x, public_4y, skey, &iv);
+
+		i = 0;
+		//printf("Secret key1:\n");
+		//for (i = 0; i < 32; i++)
+		//	printf("0x%02X ", (unsigned) sskey[i]);
+		printf("\n");
+		err = encrypt(opdu->payload, plen, sskey, &iv);
+		printf("Ciphertextlen: %d\n", err);
 		if (err < 0) {
 			printf("Encryption failed\n");
 			return err;
 		}
+		for (i = 0; i < err; i++)
+			printf("0x%02X ", (unsigned) cdata[i]);
+		printf("\n");
 
 		plen = block;
 
 		/*End of Encryption*/
 
 		/* Send packet */
-		err = phy_write(spi_fd, &p, plen + DATA_HDR_SIZE);
+		err = phy_write(spi_fd, &p, err + DATA_HDR_SIZE);
 		/*
 		 * If write error then reset tx len
 		 * and sequence number
@@ -517,11 +532,10 @@ static int write_raw(int spi_fd, int sockfd)
 static int read_raw(int spi_fd, int sockfd)
 {
 	ssize_t ilen;
-	size_t plen, block;
+	size_t plen;
 	struct nrf24_io_pack p;
 	/*Size also holds err value in case size < 0*/
 	int size, i;
-	uint8_t *cdata = p.payload+2;
 
 	const struct nrf24_ll_data_pdu *ipdu = (void *)p.payload;
 
@@ -534,24 +548,24 @@ static int read_raw(int spi_fd, int sockfd)
 	while ((ilen = phy_read(spi_fd, &p, NRF24_MTU)) > 0) {
 		size = ilen - DATA_HDR_SIZE;
 
-		/*Decrypt Data here*/
+		/*Decrypt Data here
 		if (size > 16)
 			block = 32;
 		else
-			block = 16;
+			block = 16;*/
 
-	derive_secret (public_3x, public_3y, private_4,
-					public_4x, public_4y, skey, &iv);
+		//derive_secret (public_3x, public_3y, private_4,
+		//			public_4x, public_4y, skey, &iv);
 		printf("Encrypted data is (%d):\n", size );
 		for (i = 0; i < size; i++){
-			printf("0x%02X ", (unsigned) cdata[i]);
+			printf("0x%02X ", (unsigned) p.payload[i]);
 		}
 
-		size = decrypt(cdata, block, skey, &iv);
+		size = decrypt(p.payload, size, sskey, &iv);
 
 		printf("Decrypted data is (%d):\n", size );
 		for (i = 0; i < size; i++){
-			printf("0x%02X ", (unsigned) cdata[i]);
+			printf("0x%02X ", (unsigned) p.payload[i]);
 		}
 
 		if (size < 0)
@@ -1187,3 +1201,4 @@ int nrf24_mac2str(const struct nrf24_mac *mac, char *str)
 
 	return (rc != 23 ? -1 : 0);
 }
+
