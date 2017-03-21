@@ -38,7 +38,7 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 					uint8_t *key, unsigned char *iv)
 {
 	#ifdef ARDUINO
-	
+
 	size_t i;
 	uint8_t pad_value;
 
@@ -46,19 +46,23 @@ int encrypt(uint8_t *plaintext, size_t plaintext_len,
 	aes256_ctx_t ctx;
 
 	/* Initialize AES with Key */
-	aes256_init(key, &ctx);
-
+	aes256_init(skey, &ctx);
+	
 	/* PKCS7 Padding for 16 bytes blocks */
-	pad_value = 16 - (plaintext_len % 16);
-	for(i = plaintext_len; i < plaintext_len + pad_value; i++)
-		plaintext[i] = pad_value;
+	pad_value = plaintext_len % 16;
+	if (pad_value > 0){
+		pad_value = 16 - pad_value;
+		plaintext_len +=pad_value;
+		for (i = plaintext_len; i < plaintext_len; i++)
+			plaintext[i] = pad_value;
+	}
 
 	/* Encrypt padded buffer */
 	aes256_enc(plaintext, &ctx);
 	if (plaintext_len > 16)
 		aes256_enc(plaintext + 16, &ctx);
 
-	return plaintext_len+pad_value;
+	return plaintext_len;
 
 	#else
 

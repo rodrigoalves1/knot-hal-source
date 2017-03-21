@@ -211,6 +211,7 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 {
 	int err;
 	uint8_t *cdata;
+	/*size holds error value if size < 0*/
 	size_t block, size;
 	/* Assemble keep alive packet */
 	struct nrf24_io_pack p;
@@ -230,23 +231,16 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 	kpalive->dst_addr.address.uint64 = dst.address.uint64;
 	kpalive->src_addr.address.uint64 = src.address.uint64;
 
-	/* Encrypt Data */
-	cdata = p.payload + 2;
-	size = sizeof(struct nrf24_ll_data_pdu) +
-					sizeof(struct nrf24_ll_crtl_pdu) +
-					sizeof(struct nrf24_ll_keepalive);
-
-	if (size > 16)
-		block = 32;
-	else
-		block = 16;
+	/*Encrypt Data*/
 
 	derive_secret (public_3x, public_3y, private_4,
-					public_4x, public_4y, skey, 0);
+					public_4x, public_4y, skey, &iv);
 
-	err = encrypt(cdata, block, skey, &iv);
-
-	size = block;
+	size = encrypt(opdu->payload, plen, skey, &iv);
+	if (size < 0)
+		return size;
+	
+	plen = err;
 	/*End of Encryption*/
 
 	/* Sends keep alive packet */
@@ -456,22 +450,15 @@ static int write_raw(int spi_fd, int sockfd)
 			(peers[sockfd-1].len_tx - left), plen);
 
 		/*Encrypt Data*/
-		
-		if (plen > 16)
-			block = 32;
-		else
-			block = 16;
-		
-		cdata = opdu->payload + 2;
 
 		derive_secret (public_3x, public_3y, private_4,
-						public_4x, public_4y, skey, 0);
+						public_4x, public_4y, skey, &iv);
 		
-		err = encrypt(cdata, block, skey, &iv);
+		err = encrypt(opdu->payload, plen, skey, &iv);
 		if (err < 0)
 			return err;
 		
-		plen = block;
+		plen = err;
 
 		/*End of Encryption*/
 
