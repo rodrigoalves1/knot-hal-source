@@ -507,8 +507,10 @@ static int write_raw(int spi_fd, int sockfd)
 
 static int read_raw(int spi_fd, int sockfd)
 {
-	size_t ilen, plen, block;
+	ssize_t ilen;
+	size_t plen, block;
 	struct nrf24_io_pack p;
+	/*Size also holds err value in case size < 0*/
 	int size;
 	uint8_t *cdata = p.payload+2;
 
@@ -522,8 +524,9 @@ static int read_raw(int spi_fd, int sockfd)
 	 */
 	while ((ilen = phy_read(spi_fd, &p, NRF24_MTU)) > 0) {
 		
-		/*Decrypt Data here*/
 		size = ilen - DATA_HDR_SIZE;
+		
+		/*Decrypt Data here*/
 		if (size > 16)
 			block = 32;
 		else
@@ -533,7 +536,6 @@ static int read_raw(int spi_fd, int sockfd)
 		
 		if (size < 0)
 			return size;
-			/*TO-DO set err = size if size <0*/
 
 		/*End of Decryption*/
 		

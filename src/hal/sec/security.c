@@ -143,8 +143,7 @@ int decrypt(uint8_t *ciphertext, size_t ciphertext_len,
 	#else
 
 	EVP_CIPHER_CTX *ctx;
-	int len;
-	int plaintext_len;
+	int len, plaintext_len;
 	uint8_t plaintext[NUM_ECC_DIGITS];
 
 	/* Create and initialize the context */

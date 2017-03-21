@@ -21,6 +21,8 @@
 #define _MIN(a, b)		((a) < (b) ? (a) : (b))
 #define MESSAGE "T"
 #define MESSAGE_SIZE  (sizeof(MESSAGE))
+/*Cyphered data must be composed by n 16-bytes block*/
+#define	CYPERED_DATA_SIZE	16
 /*Hard-coded Keys*/
 
 /* key pairs labeled 3 and 4, for secp256r1 curves */
@@ -77,13 +79,40 @@ uint8_t public_3y[NUM_ECC_DIGITS] = {0xF4, 0x60, 0xB9, 0x86, 0x5A, 0xC5, \
 	0xD9, 0xEF, 0x49, 0xC1, 0x9A, 0xAE, 0xE4, 0xE5, 0x64, 0xAD, 0x58, 0x48, \
 	0x6D, 0x36};
 /*uint8_t private_3[NUM_ECC_DIGITS] = { 0x8C, 0xDC, 0xCF, 0xD4, 0xCD, 0x34,
-0x3F, 0x9B, 0x0D, 0x70, 0x57, 0x3D, 0x40, 0x1A, 0x6F, 0xFE, 0xB0, 0x9C,
-0x05, 0x47, 0xE4, 0x02, 0x8C, 0xAF, 0x0C, 0x2D, 0xDB, 0x8A, 0xC9, 0x66,
-0x37, 0x1F};
+	0x3F, 0x9B, 0x0D, 0x70, 0x57, 0x3D, 0x40, 0x1A, 0x6F, 0xFE, 0xB0, 0x9C,
+	0x05, 0x47, 0xE4, 0x02, 0x8C, 0xAF, 0x0C, 0x2D, 0xDB, 0x8A, 0xC9, 0x66,
+	0x37, 0x1F};
+	*/
+
+/*
+* Place here your thing's encrypted data 
+* (payload only, do not include packet header)
 */
+uint8_t thing_data [16] ={
+	0x1A, 0xEF, 0xF3, 0x0E, 0xFB, 0xFE, 0xA4, 0xF0, \
+	0x31, 0xC8, 0x1D, 0x6A, 0x30, 0x80, 0x01, 0xF7
+	};
+
 // set IV
 uint8_t iv = 0x00;
 uint8_t i;
+
+static void printSection(){
+	int i;
+	printf("\n");
+	for (i = 0; i < 30; ++i)
+	{
+		printf("=-");
+	}
+	printf("=\n");
+}
+
+static void print_hex(uint8_t* d, int size){
+	int i;
+	for (i = 0; i < size; i++)
+		printf("0x%02X ", (unsigned) d[i]);
+	printf("\n");
+}
 
 int main(int argc, char *argv[])
 {
@@ -96,37 +125,40 @@ int main(int argc, char *argv[])
 	if (generate_keys(keys) != 1)
 		return -1;
 
+	printSection();
 	err = derive_secret(public_3x, public_3y, private_4, public_4x, public_4y,
 									skey, &iv);
-
 	printf("Derive Err: %d\n", err);
-
 	printf("Secret key:\n");
-	for (i = 0; i < 32; i++)
-		printf("0x%02X ", (unsigned) skey[i]);
+	print_hex(skey, NUM_ECC_DIGITS);
 
+	printf("MESSAGE: %s\n", MESSAGE);
+
+	printf("Plaintex Message (%lu):\n", MESSAGE_SIZE);
 	memcpy(bytebuffer, MESSAGE, MESSAGE_SIZE);
+	print_hex(bytebuffer, MESSAGE_SIZE);
 
-	printf("\nPlain text in hexa:\n");
-	for (i = 0; i < MESSAGE_SIZE; i++)
-		printf("0x%02X ", (unsigned) bytebuffer[i]);
-
+	printSection();
+	/*Encryption*/
 	ciphertext_len = encrypt(bytebuffer, MESSAGE_SIZE, skey, &iv);
+	printf("Encrypted Message (%d):\n", ciphertext_len);
+	print_hex(bytebuffer, ciphertext_len);
 
-	printf("\nciphertext:  len(%d):\n", ciphertext_len);
-	for (i = 0; i < ciphertext_len; i++)
-		printf("0x%02X ", (unsigned) bytebuffer[i]);
-	printf("\n");
-	/*End of Encryption*/
-
+	printSection();
+	/*Decryption*/
 	decryptedtext_len = decrypt(bytebuffer, ciphertext_len, skey, &iv);
+	printf("Decrypted Message (%d):\n", decryptedtext_len);	
+	print_hex(bytebuffer, decryptedtext_len);
+	printf("Decryption Result: %s\n", bytebuffer);
 
-	printf("decipheredtext:  len(%d):\n", decryptedtext_len);
+	printSection();
+	/*Thing's data decryption*/
+	printf("Thing's Encrypted Message (%d):\n", CYPERED_DATA_SIZE);
+	print_hex(thing_data, CYPERED_DATA_SIZE);
+	decryptedtext_len = decrypt(thing_data, CYPERED_DATA_SIZE, skey, &iv);
+	printf("Thing's Decrypted Message (%d):\n", decryptedtext_len);
+	print_hex(thing_data,decryptedtext_len);
+	printf("Decryption Result: %s\n", thing_data);
 
-	for (i = 0; i < decryptedtext_len; i++)
-		printf("0x%02X ", (unsigned) bytebuffer[i]);
-	printf("\n");
-
-	/*End of Decryption*/
 	return 0;
 }
