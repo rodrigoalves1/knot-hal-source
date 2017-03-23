@@ -698,8 +698,10 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 		goto done;
 	}
 	peer = g_try_new0(struct bcast_presence, 1);
-	if (peer == NULL)
+	if (peer == NULL) {
+		 hal_log_info("failed try new");
 		return -ENOMEM;
+	}
 	/*
 	 * Print every MAC sending presence in order to ease the discover of
 	 * things trying to connect to the gw.
@@ -718,30 +720,40 @@ static int8_t evt_presence(struct mgmt_nrf24_header *mhdr)
 	g_hash_table_insert(peer_bcast_table, g_strdup(mac_str), peer);
 done:
 	/* Check if peer is allowed to connect */
-	if (check_permission(evt_pre->mac) < 0)
+	if (check_permission(evt_pre->mac) < 0) {
+		hal_log_info("faileD CHECK PERMISSION %s", mac_str);
 		return -EPERM;
+	}
 
-	if (count_clients >= MAX_PEERS)
+	if (count_clients >= MAX_PEERS) {
+		hal_log_info("failed MAX USERS");
 		return -EUSERS; /*MAX PEERS*/
+	}
 
 	/*Check if this peer is already allocated */
 	position = get_peer(evt_pre->mac);
 	/* If this is a new peer */
 	if (position < 0) {
+		hal_log_info("allocated position %d", position);
 		/* Get free peers position */
 		position = get_peer_index();
-		if (position < 0)
+		if (position < 0) {
+			hal_log_info("failed position");
 			return position;
-
+		}
+		hal_log_info("allocated position = %d", position);
 		/*Create Socket */
 		err = hal_comm_socket(HAL_COMM_PF_NRF24, HAL_COMM_PROTO_RAW);
-		if (err < 0)
+		if (err < 0) {
+			hal_log_info("failed creating socket");
 			return err;
+		}
 
 		peers[position].socket_fd = err;
 
 		peers[position].knotd_fd = connect_unix();
 		if (peers[position].knotd_fd < 0) {
+			hal_log_info("failed connect_unix");
 			hal_comm_close(peers[position].socket_fd);
 			peers[position].socket_fd = -1;
 			return peers[position].knotd_fd;
@@ -821,8 +833,10 @@ static int8_t clients_read()
 	int ret;
 
 	/*No client */
-	if (count_clients == 0)
+	if (count_clients == 0) {
+		hal_log_info("clients == 0");
 		return 0;
+	}
 
 	for (i = 0; i < MAX_PEERS; i++) {
 		if (peers[i].socket_fd == -1)
@@ -830,6 +844,7 @@ static int8_t clients_read()
 
 		ret = hal_comm_read(peers[i].socket_fd, &buffer,
 			sizeof(buffer));
+		hal_log_info("%d bytes read",ret);
 		if (ret > 0) {
 			if (write(peers[i].knotd_fd, buffer, ret) < 0)
 				hal_log_error("write_knotd() error");
@@ -882,6 +897,7 @@ static gboolean read_idle(gpointer user_data)
 {
 	mgmt_read();
 	clients_read();
+	hal_delay_us(100);
 	return TRUE;
 }
 
