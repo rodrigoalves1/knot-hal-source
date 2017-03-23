@@ -210,9 +210,8 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 				struct nrf24_mac dst, struct nrf24_mac src)
 {
 	int err;
-	uint8_t *cdata;
 	/*size holds error value if size < 0*/
-	size_t block, size;
+	ssize_t size;
 	/* Assemble keep alive packet */
 	struct nrf24_io_pack p;
 	struct nrf24_ll_data_pdu *opdu =
@@ -232,20 +231,21 @@ static int write_keepalive(int spi_fd, int sockfd, int keepalive_op,
 	kpalive->src_addr.address.uint64 = src.address.uint64;
 
 	/*Encrypt Data*/
-
 	derive_secret (public_3x, public_3y, private_4,
 					public_4x, public_4y, skey, &iv);
 
-	size = encrypt(opdu->payload, plen, skey, &iv);
+	size = sizeof(struct nrf24_ll_data_pdu) +
+					sizeof(struct nrf24_ll_crtl_pdu) +
+					sizeof(struct nrf24_ll_keepalive);
+
+	size = encrypt(opdu->payload, size, skey, &iv);
 	if (size < 0)
 		return size;
-	
-	plen = err;
+
 	/*End of Encryption*/
 
 	/* Sends keep alive packet */
 	err = phy_write(spi_fd, &p, size);
-
 	if (err < 0)
 		return err;
 
@@ -407,8 +407,7 @@ static int write_raw(int spi_fd, int sockfd)
 	int err;
 	struct nrf24_io_pack p;
 	struct nrf24_ll_data_pdu *opdu = (void *)p.payload;
-	size_t plen, left, block;
-	uint8_t *cdata;
+	size_t plen, left;
 
 	/* If has nothing to send, returns EBUSY */
 	if (peers[sockfd-1].len_tx == 0)
@@ -453,11 +452,11 @@ static int write_raw(int spi_fd, int sockfd)
 
 		derive_secret (public_3x, public_3y, private_4,
 						public_4x, public_4y, skey, &iv);
-		
+
 		err = encrypt(opdu->payload, plen, skey, &iv);
 		if (err < 0)
 			return err;
-		
+
 		plen = err;
 
 		/*End of Encryption*/
@@ -510,9 +509,9 @@ static int read_raw(int spi_fd, int sockfd)
 	 * on success, the number of bytes read is returned
 	 */
 	while ((ilen = phy_read(spi_fd, &p, NRF24_MTU)) > 0) {
-		
+
 		size = ilen - DATA_HDR_SIZE;
-		
+
 		/*Decrypt Data here*/
 		if (size > 16)
 			block = 32;
@@ -520,12 +519,12 @@ static int read_raw(int spi_fd, int sockfd)
 			block = 16;
 
 		size = decrypt(cdata, block, skey, 0);
-		
+
 		if (size < 0)
 			return size;
 
 		/*End of Decryption*/
-		
+
 		/* Check if is data or Control */
 		switch (ipdu->lid) {
 
